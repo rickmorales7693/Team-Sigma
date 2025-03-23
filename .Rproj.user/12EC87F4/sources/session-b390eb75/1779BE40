@@ -3,7 +3,7 @@
     "path": "~/GitHub/Team-Sigma/Data Set (Draft).Rmd",
     "project_path": "Data Set (Draft).Rmd",
     "type": "r_markdown",
-    "hash": "1644367179",
+    "hash": "821372444",
     "contents": "",
     "dirty": false,
     "created": 1742766097236.0,
@@ -13,15 +13,15 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "29,19",
-        "scrollLine": "4"
+        "cursorPosition": "12,38",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1742767083,
+    "lastKnownWriteTime": 1742768134,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1742767084112,
+    "last_content_update": 1742768138707,
     "read_only": false,
     "read_only_alternatives": []
 }

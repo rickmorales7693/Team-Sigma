@@ -7,20 +7,10 @@ output: pdf_document
 
 ```{r}
 install.packages("haven")
-install.packages("httr")
-```
 
-```{r}
-library(httr)
-
-url <- "https://www.cdc.gov/brfss/annual_data/2017/files/LLCP2017.XPT"
-GET(url, write_disk("LLCP2017.XPT", overwrite = TRUE))
-```
-
-```{r}
 library(haven)
 
-brfss <- read_xpt("LLCP2017.XPT")
+brfss_2017 <- read_xpt("LLCP2017.XPT")
 
 head(brfss_2017)
 ```

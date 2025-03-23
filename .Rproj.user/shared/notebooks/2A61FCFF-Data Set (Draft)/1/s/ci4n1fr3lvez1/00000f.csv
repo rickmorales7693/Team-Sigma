@@ -1,5 +1,0 @@
-"0","library(haven)"
-"2","Warning: package ‘haven’ was built under R version 4.4.3"
-"0","brfss <- read_xpt(""LLCP2017.XPT"")"
-"2","Error: Failed to parse C:/Users/rickm/Documents/GitHub/Team-Sigma/LLCP2017.XPT: Invalid file, or file has unsupported features.
-"
