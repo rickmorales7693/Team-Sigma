@@ -6,18 +6,24 @@ output: pdf_document
 ---
 
 ```{r}
-install.packages("haven")
+#install.packages("haven")
+#install.packages("httr")
 
 library(haven)
 
 brfss_2017 <- read_xpt("LLCP2017.XPT")
 
 head(brfss_2017)
+
+colnames(brfss_2017)
 ```
 
 ```{r}
 str(brfss_2017)
+
 summary(brfss_2017)
 ```
+
+
 
 
