@@ -7,7 +7,6 @@ output: pdf_document
 
 ```{r}
 #install.packages("haven")
-#install.packages("httr")
 
 library(haven)
 
