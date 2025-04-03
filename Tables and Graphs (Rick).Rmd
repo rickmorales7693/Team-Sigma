@@ -186,7 +186,8 @@ ggplot(graph4_data, aes(x = VapeStatus, fill = EDUCA)) +
 library(ggplot2)
 library(dplyr)
 
-brfss_2017 <- brfss_2017 %>%
+brfss_2017_clean <- brfss_2017 %>%
+  filter(!is.na(GENHLTH), !is.na(VapeStatus)) %>%
   mutate(
     HealthStatus = factor(GENHLTH,
       levels = c(1, 2, 3, 4, 5),
@@ -194,7 +195,7 @@ brfss_2017 <- brfss_2017 %>%
     )
   )
 
-ggplot(brfss_2017, aes(x = HealthStatus, fill = VapeStatus)) +
+ggplot(brfss_2017_clean, aes(x = HealthStatus, fill = VapeStatus)) +
   geom_bar(position = "dodge") +
   labs(
     title = "General Health Status by Vaping Status",
@@ -204,6 +205,27 @@ ggplot(brfss_2017, aes(x = HealthStatus, fill = VapeStatus)) +
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Correlation Matrix
+```{r}
+library(ggcorrplot)
+
+selected_vars <- brfss_2017 %>%
+  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`)
+
+selected_vars <- selected_vars[complete.cases(selected_vars), ]
+
+cor_matrix_small <- cor(selected_vars, use = "complete.obs")
+
+ggcorrplot(cor_matrix_small,
+           method = "circle",
+           type = "lower",
+           lab = TRUE,
+           lab_size = 4,
+           title = "Correlation Matrix of Key Numeric Variables",
+           show.legend = TRUE)
+
 ```
 
 
