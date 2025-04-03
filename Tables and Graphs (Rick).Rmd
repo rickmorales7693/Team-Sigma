@@ -1,0 +1,218 @@
+---
+title: "Tables and Graphs"
+author: "Rick Morales"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+library(haven)
+
+brfss_2017 <- read_xpt("LLCP2017.XPT")
+
+head(brfss_2017)
+
+colnames(brfss_2017)
+```
+
+# Table 1
+```{r}
+library(gtsummary)
+library(dplyr)
+
+brfss_2017 <- brfss_2017 %>%
+  filter(!is.na(`_ECIGSTS`), ASTHMA3 %in% c(1, 2), SEX %in% c(1, 2), EDUCA <= 6, INCOME2 <= 8) %>%
+  mutate(
+    VapeStatus = factor(`_ECIGSTS`,
+                        levels = c(1, 2, 3),
+                        labels = c("Current User", "Former User", "Never Used")),
+    ASTHMA3 = factor(ASTHMA3, levels = c(1, 2), labels = c("Yes", "No")),
+    SEX = factor(SEX, levels = c(1, 2), labels = c("Male", "Female")),
+    EDUCA = factor(EDUCA, levels = 1:6, labels = c(
+      "Never attended/kindergarten only",
+      "Grades 1–8",
+      "Grades 9–11",
+      "High school grad/GED",
+      "Some college",
+      "College graduate"
+    )),
+    INCOME2 = factor(INCOME2, levels = 1:8, labels = c(
+      "<$10k", "$10–15k", "$15–20k", "$20–25k", "$25–35k", "$35–50k", "$50–75k", ">$75k"
+    ))
+  )
+
+table1 <- brfss_2017 %>%
+  select(VapeStatus, ASTHMA3, SEX, EDUCA, INCOME2) %>%
+  tbl_summary(by = VapeStatus, missing = "ifany") %>%
+  add_overall() %>%
+  bold_labels()
+
+table1
+```
+
+# Table 2
+```{r}
+library(gtsummary)
+library(dplyr)
+
+brfss_2017_cont <- brfss_2017 %>%
+  filter(!is.na(`_ECIGSTS`), !is.na(`_AGE80`), ALCDAY5 < 777) %>%
+  mutate(
+    VapeStatus = factor(`_ECIGSTS`,
+                        levels = c(1, 2, 3),
+                        labels = c("Current User", "Former User", "Never Used")),
+    DRINK_DAYS = ifelse(ALCDAY5 >= 101 & ALCDAY5 <= 130, ALCDAY5 - 100,
+                        ifelse(ALCDAY5 == 888, 0, NA))
+  )
+
+table2 <- brfss_2017_cont %>%
+  select(VapeStatus, `_AGE80`, DRINK_DAYS) %>%
+  tbl_summary(
+    by = VapeStatus,
+    statistic = all_continuous() ~ "{mean} (± {sd})",
+    digits = all_continuous() ~ 1
+  ) %>%
+  add_overall() %>%
+  bold_labels()
+
+table2
+```
+
+# Graph 1
+```{r}
+library(dplyr)
+library(ggplot2)
+
+graph1_data <- brfss_2017 %>%
+  filter(`_ECIGSTS` %in% c(1, 2, 3), ASTHMA3 %in% c("Yes", "No")) %>%
+  mutate(
+    VapeStatus = factor(`_ECIGSTS`,
+                        levels = c(1, 2, 3),
+                        labels = c("Current User", "Former User", "Never Used"))
+  )
+
+ggplot(graph1_data, aes(x = VapeStatus, fill = ASTHMA3)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    title = "Asthma Status by Vaping Status",
+    x = "Vaping Status",
+    y = "Proportion",
+    fill = "Asthma"
+  ) +
+  theme_minimal()
+```
+
+# Graph 2
+```{r}
+library(dplyr)
+library(ggplot2)
+
+graph2_data <- brfss_2017 %>%
+  filter(`_ECIGSTS` %in% c(1, 2, 3), ALCDAY5 < 888) %>%
+  mutate(
+    VapeStatus = factor(`_ECIGSTS`,
+                        levels = c(1, 2, 3),
+                        labels = c("Current User", "Former User", "Never Used")),
+    DrinkDays = case_when(
+      ALCDAY5 >= 101 & ALCDAY5 <= 130 ~ ALCDAY5 - 100,
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  filter(!is.na(DrinkDays))
+
+ggplot(graph2_data, aes(x = VapeStatus, y = DrinkDays, fill = VapeStatus)) +
+  geom_boxplot() +
+  labs(
+    title = "Alcohol Use (Days Drank in Past 30) by Vaping Status",
+    x = "Vaping Status",
+    y = "Drinking Days (Past 30)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+# Graph 3
+```{r}
+library(dplyr)
+library(ggplot2)
+
+graph3_data <- brfss_2017 %>%
+  filter(`_ECIGSTS` %in% c(1, 2, 3), !is.na(`_AGE80`)) %>%
+  mutate(
+    VapeStatus = factor(`_ECIGSTS`,
+                        levels = c(1, 2, 3),
+                        labels = c("Current User", "Former User", "Never Used"))
+  )
+
+ggplot(graph3_data, aes(x = VapeStatus, y = `_AGE80`, fill = VapeStatus)) +
+  geom_boxplot() +
+  labs(
+    title = "Age Distribution by Vaping Status",
+    x = "Vaping Status",
+    y = "Age (Capped at 80+)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+# Graph 4
+```{r}
+library(dplyr)
+library(ggplot2)
+
+graph4_data <- brfss_2017 %>%
+  filter(`_ECIGSTS` %in% c(1, 2, 3)) %>%
+  mutate(
+    VapeStatus = factor(`_ECIGSTS`,
+                        levels = c(1, 2, 3),
+                        labels = c("Current User", "Former User", "Never Used"))
+  )
+
+ggplot(graph4_data, aes(x = VapeStatus, fill = EDUCA)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Education Level by Vaping Status",
+    x = "Vaping Status",
+    y = "Proportion",
+    fill = "Education Level"
+  ) +
+  theme_minimal()
+```
+
+# Graph 5
+```{r}
+library(ggplot2)
+library(dplyr)
+
+brfss_2017 <- brfss_2017 %>%
+  mutate(
+    HealthStatus = factor(GENHLTH,
+      levels = c(1, 2, 3, 4, 5),
+      labels = c("Excellent", "Very Good", "Good", "Fair", "Poor")
+    )
+  )
+
+ggplot(brfss_2017, aes(x = HealthStatus, fill = VapeStatus)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "General Health Status by Vaping Status",
+    x = "Self-Reported General Health",
+    y = "Count",
+    fill = "Vaping Status"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+
+
+
+
+
+
+
