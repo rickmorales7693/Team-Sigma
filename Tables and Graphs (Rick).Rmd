@@ -7,6 +7,10 @@ output: pdf_document
 
 ```{r}
 library(haven)
+library(gtsummary)
+library(dplyr)
+library(ggplot2)
+library(ggcorrplot)
 
 brfss_2017 <- read_xpt("LLCP2017.XPT")
 
@@ -15,11 +19,9 @@ head(brfss_2017)
 colnames(brfss_2017)
 ```
 
+
 # Table 1
 ```{r}
-library(gtsummary)
-library(dplyr)
-
 brfss_2017 <- brfss_2017 %>%
   filter(!is.na(`_ECIGSTS`), ASTHMA3 %in% c(1, 2), SEX %in% c(1, 2), EDUCA <= 6, INCOME2 <= 8) %>%
   mutate(
@@ -50,11 +52,9 @@ table1 <- brfss_2017 %>%
 table1
 ```
 
+
 # Table 2
 ```{r}
-library(gtsummary)
-library(dplyr)
-
 brfss_2017_cont <- brfss_2017 %>%
   filter(!is.na(`_ECIGSTS`), !is.na(`_AGE80`), ALCDAY5 < 777) %>%
   mutate(
@@ -78,21 +78,20 @@ table2 <- brfss_2017_cont %>%
 table2
 ```
 
+
 # Graph 1
 ```{r}
-library(dplyr)
-library(ggplot2)
-
 graph1_data <- brfss_2017 %>%
   filter(`_ECIGSTS` %in% c(1, 2, 3), ASTHMA3 %in% c("Yes", "No")) %>%
   mutate(
     VapeStatus = factor(`_ECIGSTS`,
-                        levels = c(1, 2, 3),
-                        labels = c("Current User", "Former User", "Never Used"))
+      levels = c(1, 2, 3),
+      labels = c("Current User", "Former User", "Never Used"))
   )
 
 ggplot(graph1_data, aes(x = VapeStatus, fill = ASTHMA3)) +
   geom_bar(position = "fill") +
+  scale_fill_manual(values = c("Yes" = "red", "No" = "blue")) +
   scale_y_continuous(labels = scales::percent_format()) +
   labs(
     title = "Asthma Status by Vaping Status",
@@ -103,17 +102,15 @@ ggplot(graph1_data, aes(x = VapeStatus, fill = ASTHMA3)) +
   theme_minimal()
 ```
 
+
 # Graph 2
 ```{r}
-library(dplyr)
-library(ggplot2)
-
 graph2_data <- brfss_2017 %>%
   filter(`_ECIGSTS` %in% c(1, 2, 3), ALCDAY5 < 888) %>%
   mutate(
     VapeStatus = factor(`_ECIGSTS`,
-                        levels = c(1, 2, 3),
-                        labels = c("Current User", "Former User", "Never Used")),
+      levels = c(1, 2, 3),
+      labels = c("Current User", "Former User", "Never Used")),
     DrinkDays = case_when(
       ALCDAY5 >= 101 & ALCDAY5 <= 130 ~ ALCDAY5 - 100,
       TRUE ~ NA_real_
@@ -123,30 +120,38 @@ graph2_data <- brfss_2017 %>%
 
 ggplot(graph2_data, aes(x = VapeStatus, y = DrinkDays, fill = VapeStatus)) +
   geom_boxplot() +
+  scale_fill_manual(values = c(
+    "Current User" = "red",
+    "Former User" = "blue",
+    "Never Used" = "green"
+  )) +
   labs(
     title = "Alcohol Use (Days Drank in Past 30) by Vaping Status",
     x = "Vaping Status",
-    y = "Drinking Days (Past 30)"
+    y = "Drinking Days (Past 30)",
+    fill = "Vaping Status"
   ) +
-  theme_minimal() +
-  theme(legend.position = "none")
+  theme_minimal()
 ```
+
 
 # Graph 3
 ```{r}
-library(dplyr)
-library(ggplot2)
-
 graph3_data <- brfss_2017 %>%
   filter(`_ECIGSTS` %in% c(1, 2, 3), !is.na(`_AGE80`)) %>%
   mutate(
     VapeStatus = factor(`_ECIGSTS`,
-                        levels = c(1, 2, 3),
-                        labels = c("Current User", "Former User", "Never Used"))
+      levels = c(1, 2, 3),
+      labels = c("Current User", "Former User", "Never Used"))
   )
 
 ggplot(graph3_data, aes(x = VapeStatus, y = `_AGE80`, fill = VapeStatus)) +
   geom_boxplot() +
+  scale_fill_manual(values = c(
+    "Current User" = "red",
+    "Former User" = "blue",
+    "Never Used" = "green"
+  )) +
   labs(
     title = "Age Distribution by Vaping Status",
     x = "Vaping Status",
@@ -156,21 +161,33 @@ ggplot(graph3_data, aes(x = VapeStatus, y = `_AGE80`, fill = VapeStatus)) +
   theme(legend.position = "none")
 ```
 
+
 # Graph 4
 ```{r}
-library(dplyr)
-library(ggplot2)
-
-graph4_data <- brfss_2017 %>%
-  filter(`_ECIGSTS` %in% c(1, 2, 3)) %>%
+brfss_2017 <- brfss_2017 %>%
   mutate(
-    VapeStatus = factor(`_ECIGSTS`,
-                        levels = c(1, 2, 3),
-                        labels = c("Current User", "Former User", "Never Used"))
-  )
+    EducationGroup = case_when(
+      EDUCA %in% c("Never attended/kindergarten only", "Grades 1–8", "Grades 9–11") ~ "Below High School",
+      EDUCA == "High school grad/GED" ~ "High School Grad/GED",
+      EDUCA == "Some college" ~ "Some College",
+      EDUCA == "College graduate" ~ "College Graduate",
+      TRUE ~ NA_character_
+    ),
+    EducationGroup = factor(EducationGroup,
+      levels = c("Below High School", "High School Grad/GED", "Some College", "College Graduate"))
+  ) %>%
+  filter(!is.na(EducationGroup), !is.na(VapeStatus))
 
-ggplot(graph4_data, aes(x = VapeStatus, fill = EDUCA)) +
+education_colors <- c(
+  "Below High School" = "red",
+  "High School Grad/GED" = "blue",
+  "Some College" = "green",
+  "College Graduate" = "yellow"
+)
+
+ggplot(brfss_2017, aes(x = VapeStatus, fill = EducationGroup)) +
   geom_bar(position = "fill") +
+  scale_fill_manual(values = education_colors) +
   scale_y_continuous(labels = scales::percent) +
   labs(
     title = "Education Level by Vaping Status",
@@ -181,19 +198,24 @@ ggplot(graph4_data, aes(x = VapeStatus, fill = EDUCA)) +
   theme_minimal()
 ```
 
+
 # Graph 5
 ```{r}
-library(ggplot2)
-library(dplyr)
-
 brfss_2017_clean <- brfss_2017 %>%
   filter(!is.na(GENHLTH), !is.na(VapeStatus)) %>%
   mutate(
     HealthStatus = factor(GENHLTH,
       levels = c(1, 2, 3, 4, 5),
-      labels = c("Excellent", "Very Good", "Good", "Fair", "Poor")
-    )
+      labels = c("Excellent", "Very Good", "Good", "Fair", "Poor"))
   )
+
+health_colors <- c(
+  "Excellent" = "red",
+  "Very Good" = "blue",
+  "Good" = "green",
+  "Fair" = "yellow",
+  "Poor" = "orange"
+)
 
 ggplot(brfss_2017_clean, aes(x = HealthStatus, fill = VapeStatus)) +
   geom_bar(position = "dodge") +
@@ -203,18 +225,64 @@ ggplot(brfss_2017_clean, aes(x = HealthStatus, fill = VapeStatus)) +
     y = "Count",
     fill = "Vaping Status"
   ) +
+  scale_fill_manual(values = c("Current User" = "red", "Former User" = "blue", "Never Used" = "green")) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+
+# Graph 6
+```{r}
+brfss_2017 <- brfss_2017 %>%
+  mutate(
+    IncomeLevel = factor(INCOME2,
+      levels = c("<$10k", "$10–15k", "$15–20k", "$20–25k", "$25–35k", "$35–50k", "$50–75k", ">$75k"))
+  )
+
+income_plot_data <- brfss_2017 %>%
+  filter(!is.na(VapeStatus), !is.na(IncomeLevel))
+
+ggplot(income_plot_data, aes(x = IncomeLevel, fill = VapeStatus)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Income Distribution by Vaping Status",
+    x = "Income Level",
+    y = "Count",
+    fill = "Vaping Status"
+  ) +
+  scale_fill_manual(values = c("Current User" = "red", "Former User" = "blue", "Never Used" = "green")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+# Graph 7
+```{r}
+brfss_2017 <- brfss_2017 %>%
+  mutate(
+    COPD = factor(CHCCOPD1, levels = c(1, 2), labels = c("Yes", "No"))
+  ) %>%
+  filter(!is.na(COPD), !is.na(VapeStatus))
+
+ggplot(brfss_2017, aes(x = VapeStatus, fill = COPD)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "COPD Status by Vaping Status",
+    x = "Vaping Status",
+    y = "Proportion",
+    fill = "COPD Status"
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("Yes" = "red", "No" = "blue")) +
+  theme_minimal()
+```
+
+
 # Correlation Matrix
 ```{r}
-library(ggcorrplot)
-
 selected_vars <- brfss_2017 %>%
-  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`)
-
-selected_vars <- selected_vars[complete.cases(selected_vars), ]
+  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`) %>%
+  filter(complete.cases(.))
 
 cor_matrix_small <- cor(selected_vars, use = "complete.obs")
 
@@ -225,16 +293,6 @@ ggcorrplot(cor_matrix_small,
            lab_size = 4,
            title = "Correlation Matrix of Key Numeric Variables",
            show.legend = TRUE)
-
 ```
-
-
-
-
-
-
-
-
-
 
 
