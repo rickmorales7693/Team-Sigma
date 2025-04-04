@@ -30,21 +30,20 @@ brfss_2017 <- brfss_2017 %>%
                         labels = c("Current User", "Former User", "Never Used")),
     ASTHMA3 = factor(ASTHMA3, levels = c(1, 2), labels = c("Yes", "No")),
     SEX = factor(SEX, levels = c(1, 2), labels = c("Male", "Female")),
-    EDUCA = factor(EDUCA, levels = 1:6, labels = c(
-      "Never attended/kindergarten only",
-      "Grades 1–8",
-      "Grades 9–11",
-      "High school grad/GED",
-      "Some college",
-      "College graduate"
-    )),
+    EducationGroup = case_when(
+      EDUCA %in% c(1, 2, 3) ~ "Below High School",
+      EDUCA == 4 ~ "High School Grad/GED",
+      EDUCA == 5 ~ "Some College",
+      EDUCA == 6 ~ "College Graduate",
+      TRUE ~ NA_character_
+    ),
     INCOME2 = factor(INCOME2, levels = 1:8, labels = c(
       "<$10k", "$10–15k", "$15–20k", "$20–25k", "$25–35k", "$35–50k", "$50–75k", ">$75k"
     ))
   )
 
 table1 <- brfss_2017 %>%
-  select(VapeStatus, ASTHMA3, SEX, EDUCA, INCOME2) %>%
+  select(VapeStatus, ASTHMA3, SEX, EducationGroup, INCOME2) %>%
   tbl_summary(by = VapeStatus, missing = "ifany") %>%
   add_overall() %>%
   bold_labels()
@@ -153,7 +152,7 @@ ggplot(graph3_data, aes(x = VapeStatus, y = `_AGE80`, fill = VapeStatus)) +
     "Never Used" = "green"
   )) +
   labs(
-    title = "Age Distribution by Vaping Status",
+    title = "Age by Vaping Status",
     x = "Vaping Status",
     y = "Age (Capped at 80+)"
   ) +
@@ -167,10 +166,10 @@ ggplot(graph3_data, aes(x = VapeStatus, y = `_AGE80`, fill = VapeStatus)) +
 brfss_2017 <- brfss_2017 %>%
   mutate(
     EducationGroup = case_when(
-      EDUCA %in% c("Never attended/kindergarten only", "Grades 1–8", "Grades 9–11") ~ "Below High School",
-      EDUCA == "High school grad/GED" ~ "High School Grad/GED",
-      EDUCA == "Some college" ~ "Some College",
-      EDUCA == "College graduate" ~ "College Graduate",
+      EDUCA %in% c(1, 2, 3) ~ "Below High School",
+      EDUCA == 4 ~ "High School Grad/GED",
+      EDUCA == 5 ~ "Some College",
+      EDUCA == 6 ~ "College Graduate",
       TRUE ~ NA_character_
     ),
     EducationGroup = factor(EducationGroup,
