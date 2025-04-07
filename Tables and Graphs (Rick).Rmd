@@ -276,12 +276,10 @@ ggplot(brfss_2017, aes(x = VapeStatus, fill = COPD)) +
   scale_y_continuous(labels = scales::percent) +
   theme_minimal()
 ```
-
-
 # Correlation Matrix
 ```{r}
 selected_vars <- brfss_2017 %>%
-  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`) %>%
+  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`, `_STATE`) %>%
   filter(complete.cases(.))
 
 cor_matrix_small <- cor(selected_vars, use = "complete.obs")
@@ -294,5 +292,129 @@ ggcorrplot(cor_matrix_small,
            title = "Correlation Matrix of Key Numeric Variables",
            show.legend = TRUE)
 ```
+# Graph 8
+Vaping Status among those who have been diagnosed with asthma in all 50 US states and territories of Guman and Puerto Rico.
+```{r}
+#Converting numeric variable _STATE into character and recoding with abbreviations for US states and territories
+brfss_2017$`_STATE` <- as.character(brfss_2017$`_STATE`)
+brfss_2017$`_STATE` <- recode(brfss_2017$'_STATE',
+                       '1' = 'AL',
+                       '2' = 'AK',
+                       '4' = 'AZ',
+                       '5' = 'AR',
+                       '6' = 'CA',
+                       '8' = 'CO',
+                       '9' = 'CT',
+                       '10' = 'DE',
+                       '11' = 'DC',
+                       '12' = 'FL',
+                       '13' = 'GA',
+                       '15' = 'HI',
+                       '16' = 'ID',
+                       '17' = 'IL',
+                       '18' = 'IN',
+                       '19' = 'IA',
+                       '20' = 'KS',
+                       '21' = 'KY',
+                       '22' = 'LA',
+                       '23' = 'ME',
+                       '24' = 'MD',
+                       '25' = 'MA',
+                       '26' = 'MI',
+                       '27' = 'MN',
+                       '28' = 'MS',
+                       '29' = 'MO',
+                       '30' = 'MT',
+                       '31' = 'NE',
+                       '32' = 'NV',
+                       '33' = 'NH',
+                       '34' = 'NJ',
+                       '35' = 'NM',
+                       '36' = 'NY',
+                       '37' = 'NC',
+                       '38' = 'ND',
+                       '39' = 'OH',
+                       '40' = 'OK',
+                       '41' = 'OR',
+                       '42' = 'PA',
+                       '44' = 'RI',
+                       '45' = 'SC',
+                       '46' = 'SD',
+                       '47' = 'TN',
+                       '48' = 'TX',
+                       '49' = 'UT',
+                       '50' = 'VT',
+                       '51' = 'VA',
+                       '53' = 'WA',
+                       '54' = 'WV',
+                       '55' = 'WI',
+                       '56' = 'WY',
+                       '66' = 'GU',
+                       '72' = 'PR')
+
+state_plot_data <- brfss_2017 %>%
+  filter(!is.na(VapeStatus), !is.na(`_STATE`), !is.na(ASTHMA3), ASTHMA3 == "Yes")
+
+state_plot_data
+
+ggplot(state_plot_data, aes(x = `_STATE`, fill = VapeStatus)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Vaping Status in Patients Diagnosed with Asthma Across US States and Territories",
+    x = "State",
+    y = "Count",
+    fill = "Vaping Status"
+  ) +
+  scale_fill_manual(values = c("Current User" = "red", "Former User" = "blue", "Never Used" = "green")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+# Graoh 9
+Asthma Status Among Those who Vape in all 50 US states and territories of Guam and Puerto Rico. This refers to patients survyed who have been diagnosed with asthma and those who did not receive a diagnosis.
+```{r}
+state_plot_data2 <- brfss_2017 %>%
+  filter(!is.na(ASTHMA3), !is.na(`_STATE`), !is.na(VapeStatus), VapeStatus == "Current User")
+    #group_by(`_STATE`) %>%
+    #summarize(coumt_current_user = n())
+
+state_plot_data2
+
+ggplot(state_plot_data2, aes(x = `_STATE`, fill = ASTHMA3)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Asthma Status in Current Vapers Across US States and Territories",
+    x = "State",
+    y = "Count",
+    fill = "Asthma Status"
+  ) +
+  scale_fill_manual(values = c("Yes" = "red", "No" = "blue")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+Graoh 10
+Vaping Status among those surveyed in 2017 who report that they still have asthma across all 50 US states and territories including Guam and Puerto Rico.
+```{r}
+brfss_2017 <- brfss_2017 %>%
+  mutate(
+    ASTHNOW = factor(ASTHNOW,
+      levels = c(1, 2), labels = c("Yes", "No"))
+  )
+
+asthma_now_plot_data <- brfss_2017 %>%
+  filter(!is.na(VapeStatus), !is.na(`_STATE`), !is.na(ASTHNOW), ASTHNOW == "Yes")
+
+ggplot(asthma_now_plot_data, aes(x = `_STATE`, fill = VapeStatus)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Vaping Status in Current Asthmatics Across by State/Territory",
+    x = "State",
+    y = "Count",
+    fill = "Vaping Status"
+  ) +
+  scale_fill_manual(values = c("Current User" = "red", "Former User" = "blue", "Never Used" = "green")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+
 
 
