@@ -415,6 +415,23 @@ ggplot(asthma_now_plot_data, aes(x = `_STATE`, fill = VapeStatus)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 70, hjust = 1))
 ```
+Sex Distribution by Vaping Status
+```{r}
+brfss_2017 <- brfss_2017 %>%
+  filter(!is.na(SEX), !is.na(VapeStatus))
+
+ggplot(brfss_2017, aes(x = VapeStatus, fill = SEX)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(values = c("Male" = "red", "Female" = "blue")) +
+  labs(
+    title = "Sex by Vaping Status",
+    x = "Vaping Status",
+    y = "Proportion",
+    fill = "Sex"
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal()
+```
 
 
 
