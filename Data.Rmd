@@ -276,22 +276,11 @@ ggplot(brfss_2017, aes(x = VapeStatus, fill = COPD)) +
   scale_y_continuous(labels = scales::percent) +
   theme_minimal()
 ```
-# Correlation Matrix
-```{r}
-selected_vars <- brfss_2017 %>%
-  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`, `_STATE`) %>%
-  filter(complete.cases(.))
 
-cor_matrix_small <- cor(selected_vars, use = "complete.obs")
 
-ggcorrplot(cor_matrix_small,
-           method = "circle",
-           type = "lower",
-           lab = TRUE,
-           lab_size = 4,
-           title = "Correlation Matrix of Key Numeric Variables",
-           show.legend = TRUE)
-```
+
+
+
 # Graph 8
 Vaping Status among those who have been diagnosed with asthma in all 50 US states and territories of Guman and Puerto Rico.
 ```{r}
@@ -369,7 +358,9 @@ ggplot(state_plot_data, aes(x = `_STATE`, fill = VapeStatus)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 70, hjust = 1))
 ```
-# Graoh 9
+
+
+# Graph 9
 Asthma Status Among Those who Vape in all 50 US states and territories of Guam and Puerto Rico. This refers to patients survyed who have been diagnosed with asthma and those who did not receive a diagnosis.
 ```{r}
 state_plot_data2 <- brfss_2017 %>%
@@ -391,7 +382,9 @@ ggplot(state_plot_data2, aes(x = `_STATE`, fill = ASTHMA3)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 70, hjust = 1))
 ```
-Graoh 10
+
+
+# Graph 10
 Vaping Status among those surveyed in 2017 who report that they still have asthma across all 50 US states and territories including Guam and Puerto Rico.
 ```{r}
 brfss_2017 <- brfss_2017 %>%
@@ -415,6 +408,9 @@ ggplot(asthma_now_plot_data, aes(x = `_STATE`, fill = VapeStatus)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 70, hjust = 1))
 ```
+
+
+# Graph 11
 Sex Distribution by Vaping Status
 ```{r}
 brfss_2017 <- brfss_2017 %>%
@@ -433,8 +429,8 @@ ggplot(brfss_2017, aes(x = VapeStatus, fill = SEX)) +
   theme_minimal()
 ```
 
-
-# Missing Data Summary Table
+# Graph 12
+Missing Data Summary Table
 ```{r}
 library(naniar)
 
@@ -443,6 +439,27 @@ missing_summary <- brfss_2017 %>%
   miss_var_summary()
 
 print(missing_summary)
+```
+
+
+# Correlation Matrix
+```{r}
+# Numeric variables
+selected_vars <- brfss_2017 %>%
+  select(`_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`) %>%
+  filter(complete.cases(.))  # Remove rows with missing values
+
+# Calculate
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Plot
+ggcorrplot(cor_matrix,
+           method = "circle",
+           type = "lower",
+           lab = TRUE,
+           lab_size = 4,
+           title = "Correlation Matrix of Key Numeric Variables",
+           show.legend = TRUE)
 ```
 
 
