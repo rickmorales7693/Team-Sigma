@@ -434,4 +434,15 @@ ggplot(brfss_2017, aes(x = VapeStatus, fill = SEX)) +
 ```
 
 
+# Missing Data Summary Table
+```{r}
+library(naniar)
+
+missing_summary <- brfss_2017 %>%
+  select(ASTHMA3, SEX, EDUCA, INCOME2, GENHLTH, `_AGE80`, ALCDAY5, AVEDRNK2, MAXDRNKS, `_BMI5`) %>%
+  miss_var_summary()
+
+print(missing_summary)
+```
+
 
