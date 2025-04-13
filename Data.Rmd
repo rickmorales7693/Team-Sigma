@@ -23,6 +23,7 @@ Cleaning and Pre-Processing
 
 Removal of missing data consists of utilizing the select function from the dplyr library. Variables with no missing values such as FMONTH and IDATE are removed due to irrelevance in the study. Columns containing 30% or more missing values are removed from the dataset, decreasing the total # of columns from 358 to 149.
 ```{r}
+# Erika Torkildsen
 brfss_2017_cleaned <- brfss_2017 %>%
     select(-c(2:6), -c(10:27), -31, -37, -40, -45, -c(53:57), -c(62:64), -72, -c(80:82), -85, -c(87:89), -c(97:102), -106, -108, -110, -c(112:246), -c(255:258), -c(326:327), -c(330:337), -c(340:345), -c(356:357))
 
@@ -30,8 +31,10 @@ brfss_2017_cleaned
 ```
 Cleaning Continued: Renaming Variables
 
-Variables below were renamed to improve understanding and code readability. Inserted characters such as underscores before variable names are removed. Variable names are consistent case-wise with all column names in uppercase format. Since data is already in wide format, pivoting is not needed. 
+Variables below were renamed to improve understanding and code readability. Inserted characters such as underscores before variable names are removed. Variable names are consistent case-wise with all column names in uppercase format. Since data is already in wide format, pivoting is not needed. ECT.
 ```{r}
+#Erika Torkildsen
+
 #Duplicated row check
 #sum(duplicated(brfss_2017_cleaned))
 
@@ -159,7 +162,20 @@ names(brfss_2017_cleaned)[149] <- "AIDSTEST_COMP"
 
 brfss_2017_cleaned
 ```
+Calculated Variables and Encoding
+```{r}
+#
+```
 
+Train-Test Split
+```{r}
+#
+```
+
+Value Imputation
+```{r}
+#
+```
 
 # Table 1
 ```{r}
