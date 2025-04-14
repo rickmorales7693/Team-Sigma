@@ -17,6 +17,7 @@ brfss_2017 <- read_xpt("LLCP2017.XPT")
 head(brfss_2017)
 
 colnames(brfss_2017)
+<<<<<<< HEAD:Data.Rmd
 ```
 
 Cleaning and Pre-Processing
@@ -175,6 +176,8 @@ Train-Test Split
 Value Imputation
 ```{r}
 #
+=======
+>>>>>>> parent of 3ad0e0f (Update Tables and Graphs (Rick).Rmd):Tables and Graphs (Rick).Rmd
 ```
 
 # Table 1
