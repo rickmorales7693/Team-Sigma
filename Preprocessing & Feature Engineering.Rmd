@@ -5,6 +5,7 @@ date: "2025-04-14"
 output: html_document
 ---
 
+# Libraries and Data
 ```{r}
 library(haven)
 library(gtsummary)
@@ -172,8 +173,8 @@ names(brfss_2017_cleaned)[149] <- "AIDSTEST_COMP"
 head(brfss_2017_cleaned)
 ```
 
-Missing Data Summary Table
 
+# Missing Data Summary Table (Rick)
 ```{r}
 missing_summary <- brfss_2017_cleaned %>%
   miss_var_summary()
@@ -181,8 +182,8 @@ missing_summary <- brfss_2017_cleaned %>%
 print(missing_summary)
 ```
 
-Value Imputation
 
+# Value Imputation
 ```{r}
 # Replace NA values with O for entire data frame
 brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
@@ -254,8 +255,8 @@ df$STATE_ABBR <- recode(df$STATE,
                        '72' = 'PR')
 ```
 
-Train-Test Split Ratio
 
+# Train-Test Split Ratio (Stephaine, Erika, and Rick)
 ```{r}
 # Filter for only asthmatics
 df <- df %>%
@@ -339,8 +340,8 @@ calcSplitRatio <- function(p = NA, df) {
 result <- calcSplitRatio(df = brfss_2017_cleaned)
 ```
 
-Encoding
 
+# Encoding
 ```{r}
 # No categorical variables to encode - ECIG_COMP is the encoding of VapeStatus & STATE is the encoding of STATE_ABBR
 # Remove categorical variables from dataset
@@ -348,8 +349,8 @@ df <- df %>%
     select(-c(150:151))
 ```
 
-Arithmetic Transformations
 
+# Arithmetic Transformations
 ```{r}
 # Logarithmic Transformation
 df$log_x <- log(df$ECIG_COMP)
@@ -358,8 +359,8 @@ df$log_x <- log(df$ECIG_COMP)
 df$sqrt_x <- sqrt(df$ECIG_COMP)
 ```
 
-Normalize and/or Scale
 
+# Normalize and/or Scale
 ```{r}
 # Applying preProcess for Min-Max normalization
 preprocessed_data <- preProcess(df[, -c(1:4, 18, 80)], method = "range") # Remove first 4 columns since they are unique variables; Remove ASTHMA & ASTHMA_LIFE since they have no variation
@@ -369,8 +370,7 @@ print(transformed_data)
 ```
 
 
-# Feature Engineering
-
+# PCA (Unsupervised) Feature Engineering (Stephaine)
 ```{r}
 # Remove character columns
 numerical_data <- transformed_data %>%
@@ -392,7 +392,7 @@ fviz_eig(pca, addlabels = TRUE)
 ```
 
 
-# K-Means Clustering
+# K-Means Clustering (Unsupervised) (Rick)
 ```{r}
 # Using only non-zero variance
 kmeans_data <- transformed_data %>%
