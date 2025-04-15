@@ -391,3 +391,33 @@ pca$loadings[, 1:2]
 fviz_eig(pca, addlabels = TRUE)
 ```
 
+
+# K-Means Clustering
+```{r}
+# Select only numeric columns with non-zero variance
+kmeans_data <- transformed_data %>%
+  select(where(is.numeric)) %>%
+  select(where(~ var(.x, na.rm = TRUE) != 0)) %>%
+  na.omit()  # Remove rows with missing values
+
+set.seed(123)
+kmeans_result <- kmeans(kmeans_data, centers = 3, nstart = 25)
+
+# Visualize the clusters using PCA
+fviz_cluster(kmeans_result, 
+             data = kmeans_data,
+             palette = c("red", "blue", "green"),
+             geom = "point",
+             pointsize = 1.2,
+             ellipse.type = "t",
+             show.clust.cent = TRUE,
+             ggtheme = theme_minimal()) +
+  labs(title = "K-Means Clustering of BRFSS Data (k = 3)")
+
+# K-Means Summary
+kmeans_data$Cluster <- as.factor(kmeans_result$cluster)
+
+kmeans_data %>%
+  group_by(Cluster) %>%
+  summarise(across(c(AGE80, BMI, ALCDAY5), mean, na.rm = TRUE))
+```
