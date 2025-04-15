@@ -394,11 +394,11 @@ fviz_eig(pca, addlabels = TRUE)
 
 # K-Means Clustering
 ```{r}
-# Select only numeric columns with non-zero variance
+# Using only non-zero variance
 kmeans_data <- transformed_data %>%
   select(where(is.numeric)) %>%
   select(where(~ var(.x, na.rm = TRUE) != 0)) %>%
-  na.omit()  # Remove rows with missing values
+  na.omit()  # Removing rows with missing values
 
 set.seed(123)
 kmeans_result <- kmeans(kmeans_data, centers = 3, nstart = 25)
