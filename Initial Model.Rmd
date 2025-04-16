@@ -13,6 +13,7 @@ library(glmnet)
 library(parameters)
 library(see)
 library(lmtest)  # For assumption testing
+library(ggplot2)
 
 brfss_2017 <- read_xpt("LLCP2017.XPT")
 
@@ -231,6 +232,35 @@ rmse_test <- sqrt(mean((y_test_clean - predictions_clean)^2))
 
 print(paste("Train RMSE:", round(rmse_train, 3)))
 print(paste("Test RMSE:", round(rmse_test, 3)))
+```
+
+
+# RMSE Comparison
+```{r}
+# Define RMSE values
+rmse_train <- 1.253
+rmse_test <- 0.513
+
+# Create data frame
+rmse_data <- data.frame(
+  Dataset = c("Train RMSE", "Test RMSE"),
+  RMSE = c(rmse_train, rmse_test)
+)
+
+# Create the bar plot
+ggplot(rmse_data, aes(x = Dataset, y = RMSE)) +
+  geom_bar(stat = "identity", fill = "orange", width = 0.6) +
+  geom_text(aes(label = round(RMSE, 3)), vjust = -0.5, size = 5) +
+  labs(
+    title = "Root Mean Squared Error (RMSE)",
+    y = "RMSE Value",
+    x = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "none"
+  )
 ```
 
 
