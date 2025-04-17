@@ -32,10 +32,8 @@ head(brfss_2017_cleaned)
 ```
 
 
+# Renamed For Clarity
 ```{r}
-#Duplicated row check
-#sum(duplicated(brfss_2017_cleaned))
-
 names(brfss_2017_cleaned)[1] <- "STATE"
 names(brfss_2017_cleaned)[4] <- "PSU"
 names(brfss_2017_cleaned)[8] <- "HLTHPLN"
@@ -162,6 +160,13 @@ head(brfss_2017_cleaned)
 ```
 
 
+# Drop source variables and target leakage risks
+```{r}
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+  select(-c(WEIGHT, HEIGHT, HT_COMP_IN, HT_COMP_M, WT_COMP_KILO, ECIG_NOW_COMP))
+```
+
+
 # Train-Test Split
 ```{r}
 set.seed(123)
@@ -171,10 +176,16 @@ test <- brfss_2017_cleaned[-split, ]
 ```
 
 
+# Predictor Variables
+```{r}
+predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5',
+                    'CHCCOPD', 'CHECKUP', 'EDUCA', 'GENHLTH', 'HLTHPLN', 'INCOME', 'SEX')
+```
+
+
 # Model Fitting (Linear Model)
 ```{r}
-x_train <- data.matrix(train[, c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5',
-                                 'CHCCOPD', 'CHECKUP', 'EDUCA', 'GENHLTH', 'HLTHPLN', 'INCOME', 'SEX')])
+x_train <- data.matrix(train[, predictor_vars])
 y_train <- train$ECIG_COMP
 
 # Combine x_train and y_train into one data frame
@@ -214,8 +225,8 @@ print(cv_model)
 
 # Overfitting Check
 ```{r}
-# Rebuild x_test and make sure it's a data.frame with column names matching train_lm
-x_test <- test[, colnames(train_lm)[-1]]  # -1 removes y_train
+# Rebuild x_test
+x_test <- test[, predictor_vars]
 x_test <- data.frame(x_test)
 
 # Predict using the linear model
