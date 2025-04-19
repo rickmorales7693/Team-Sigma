@@ -210,14 +210,7 @@ train <- brfss_2017_cleaned[split, ]
 test <- brfss_2017_cleaned[-split, ]
 ```
 
-# Missing Value Summary
-```{r}
-train
-missing_summary_train <- train %>%
-  miss_var_summary()
 
-print(missing_summary_train)
-```
 
 # Imputation of Missing Values
 
