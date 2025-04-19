@@ -18,6 +18,7 @@ library(caret)
 library(pROC)
 library(ggplot2)
 library(randomForest)
+library(mice)
 ```
 
 # 2. Load Data
@@ -164,7 +165,7 @@ head(brfss_2017_cleaned)
 ```
 
 
-# 5. Prepare Dataset (filtered and relevant variables only)
+# 5. Prepare Dataset (filtered and relevant variables only) and Imputation
 ```{r}
 # Ensure unique column names
 colnames(brfss_2017_cleaned) <- make.names(colnames(brfss_2017_cleaned), unique = TRUE)
@@ -175,7 +176,27 @@ brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
 # Filter for ECIG_COMP values and asthmatic respondents
 df <- brfss_2017_cleaned %>%
   filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1)
+
+# Split into Training and Test sets
+set.seed(123)
+train_indices <- sample(seq_len(nrow(df)), size = 0.8 * nrow(df))
+train_data <- df[train_indices, ]
+test_data <- df[-train_indices, ]
+
+# MICE Imputation on Training Data
+# Check missing summary first
+md.pattern(train_data)
+
+# Apply MICE with CART method (Classification and Regression Trees)
+mice_train <- mice(train_data, method = "cart", m = 1, seed = 123)
+
+# Complete the data (first imputed dataset)
+train_data_imputed <- complete(mice_train)
+
+# Optional: Check again
+summary(train_data_imputed)
 ```
+
 
 
 # 6. Predictor and Target Setup
@@ -331,7 +352,7 @@ abline(a = 0, b = 1, lty = 2, col = "gray")
 ```
 
 
-# Feature Importance
+# 17. Feature Importance
 ```{r}
 # Visualize feature importance
 varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "darkgreen")
