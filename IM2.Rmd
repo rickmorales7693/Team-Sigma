@@ -18,6 +18,7 @@ library(caret)
 library(pROC)
 library(ggplot2)
 library(randomForest)
+library(mice)
 ```
 
 # 2. Load Data
@@ -71,22 +72,100 @@ names(brfss_2017_cleaned)[56] <- "FLUSHOT"
 names(brfss_2017_cleaned)[57] <- "PNEUMONIA_VAC"
 names(brfss_2017_cleaned)[58] <- "HIVTEST"
 names(brfss_2017_cleaned)[59] <- "HIVRISK"
+names(brfss_2017_cleaned)[63] <- "STSTR"
+names(brfss_2017_cleaned)[64] <- "STRATUM_WGHT"
+names(brfss_2017_cleaned)[65] <- "RAWRAKE"
+names(brfss_2017_cleaned)[66] <- "WT2RAKE"
+names(brfss_2017_cleaned)[67] <- "IMPRACE"
+names(brfss_2017_cleaned)[68] <- "DUALUSE"
+names(brfss_2017_cleaned)[69] <- "DUALCOR"
+names(brfss_2017_cleaned)[70] <- "LLCPWT2"
+names(brfss_2017_cleaned)[71] <- "LLCPWT"
+names(brfss_2017_cleaned)[72] <- "RFHLTH"
+names(brfss_2017_cleaned)[73] <- "PHYS_COMP"
+names(brfss_2017_cleaned)[74] <- "MENT_COMP"
+names(brfss_2017_cleaned)[75] <- "HCVU651"
+names(brfss_2017_cleaned)[76] <- "RFHYPES"
+names(brfss_2017_cleaned)[77] <- "CHOLCH1"
+names(brfss_2017_cleaned)[78] <- "HICHOL_COMP"
+names(brfss_2017_cleaned)[79] <- "MI_CHD"
+names(brfss_2017_cleaned)[80] <- "ASTHMA_LIFE"
 names(brfss_2017_cleaned)[81] <- "ASTHMA_NOW_COMP"
+names(brfss_2017_cleaned)[82] <- "ASTHMA_COMP"
+names(brfss_2017_cleaned)[83] <- "ARTHRITIS_DIAGNOS"
+names(brfss_2017_cleaned)[84] <- "LIMIT_ACTIVITY"
+names(brfss_2017_cleaned)[85] <- "LIMIT_WORK"
+names(brfss_2017_cleaned)[86] <- "LIMIT_SOCIAL"
+names(brfss_2017_cleaned)[87] <- "PRACE_COMP"
+names(brfss_2017_cleaned)[88] <- "MULTI_RACE"
+names(brfss_2017_cleaned)[89] <- "HISPANIC_COMP"
+names(brfss_2017_cleaned)[90] <- "RACE_COMP"
+names(brfss_2017_cleaned)[91] <- "RACEG21"
+names(brfss_2017_cleaned)[92] <- "RACEGR3"
+names(brfss_2017_cleaned)[93] <- "RACE_G1"
+names(brfss_2017_cleaned)[94] <- "AGEG5YR"
+names(brfss_2017_cleaned)[95] <- "AGE65YR"
 names(brfss_2017_cleaned)[96] <- "AGE80"
+names(brfss_2017_cleaned)[97] <- "AGE_G"
+names(brfss_2017_cleaned)[98] <- "HT_COMP_IN"
+names(brfss_2017_cleaned)[99] <- "HT_COMP_M"
+names(brfss_2017_cleaned)[100] <- "WT_COMP_KILO"
 names(brfss_2017_cleaned)[101] <- "BMI"
+names(brfss_2017_cleaned)[102] <- "BMI_CAT"
+names(brfss_2017_cleaned)[103] <- "BMI_OVER"
+names(brfss_2017_cleaned)[104] <- "CHILD_COMP"
 names(brfss_2017_cleaned)[105] <- "EDUCA_COMP"
 names(brfss_2017_cleaned)[106] <- "INCOME_COMP"
 names(brfss_2017_cleaned)[107] <- "SMOKER_COMP"
+names(brfss_2017_cleaned)[108] <- "SMOKENOW_COMP"
 names(brfss_2017_cleaned)[109] <- "ECIG_COMP"
+names(brfss_2017_cleaned)[110] <- "ECIG_NOW_COMP"
+names(brfss_2017_cleaned)[111] <- "DRINKANY_30"
+names(brfss_2017_cleaned)[112] <- "DROCDY3"
+names(brfss_2017_cleaned)[113] <- "BINGE_COMP"
 names(brfss_2017_cleaned)[114] <- "WEEKLY_DRINK"
-names(brfss_2017_cleaned)[90] <- "GENHLTH"
+names(brfss_2017_cleaned)[115] <- "HEAVY_DRINK"
+names(brfss_2017_cleaned)[116] <- "FRUITJUICE_COMP"
+names(brfss_2017_cleaned)[117] <- "FRUITJUICE_COMP2"
+names(brfss_2017_cleaned)[118] <- "GREEN_VEG_COMP"
+names(brfss_2017_cleaned)[119] <- "FRENCHF_COMP"
+names(brfss_2017_cleaned)[120] <- "POTATO_COMP"
+names(brfss_2017_cleaned)[121] <- "OTHER_VEG_COMP"
+names(brfss_2017_cleaned)[122] <- "MISSING_FRUIT"
+names(brfss_2017_cleaned)[123] <- "MISSING_VEG"
+names(brfss_2017_cleaned)[124] <- "MISS_ANY_FRUIT"
+names(brfss_2017_cleaned)[125] <- "MISS_ANY_VEG"
+names(brfss_2017_cleaned)[126] <- "TOTAL_FRUIT"
+names(brfss_2017_cleaned)[127] <- "TOTAL_VEG"
+names(brfss_2017_cleaned)[128] <- "ATLEAST1_FRUIT"
+names(brfss_2017_cleaned)[129] <- "ATLEAST1_VEG"
+names(brfss_2017_cleaned)[130] <- "MORE16_FRUIT"
+names(brfss_2017_cleaned)[131] <- "MORE23_VEG"
+names(brfss_2017_cleaned)[132] <- "FRUIT_EXCLUDE"
+names(brfss_2017_cleaned)[133] <- "VEG_EXCLUDE"
+names(brfss_2017_cleaned)[134] <- "LEISURE_COMP"
+names(brfss_2017_cleaned)[135] <- "MAX_OXYGEN"
+names(brfss_2017_cleaned)[136] <- "FUNC_CAPACITY"
+names(brfss_2017_cleaned)[137] <- "STRENGTH_FREQ"
+names(brfss_2017_cleaned)[138] <- "MISSING_PHYS"
+names(brfss_2017_cleaned)[139] <- "PHYS_CATEGORY"
+names(brfss_2017_cleaned)[140] <- "PHYS_IDX"
+names(brfss_2017_cleaned)[141] <- "150_PHYS_COMP"
+names(brfss_2017_cleaned)[142] <- "300_PHYS_COMP"
+names(brfss_2017_cleaned)[143] <- "300_PHYS2_COMP"
+names(brfss_2017_cleaned)[144] <- "MUSCLE_RECOMMEND"
+names(brfss_2017_cleaned)[145] <- "AEROBIC_STRENGTH"
+names(brfss_2017_cleaned)[146] <- "AEROBIC_STRENGTH2"
+names(brfss_2017_cleaned)[147] <- "SEATBELT_COMP"
+names(brfss_2017_cleaned)[148] <- "SEATBELT_COMP2"
+names(brfss_2017_cleaned)[149] <- "AIDSTEST_COMP"
 
 
 head(brfss_2017_cleaned)
 ```
 
 
-# 5. Prepare Dataset (filtered and relevant variables only)
+# 5. Prepare Dataset (filtered and relevant variables only) and Imputation
 ```{r}
 # Ensure unique column names
 colnames(brfss_2017_cleaned) <- make.names(colnames(brfss_2017_cleaned), unique = TRUE)
@@ -97,7 +176,27 @@ brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
 # Filter for ECIG_COMP values and asthmatic respondents
 df <- brfss_2017_cleaned %>%
   filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1)
+
+# Split into Training and Test sets
+set.seed(123)
+train_indices <- sample(seq_len(nrow(df)), size = 0.8 * nrow(df))
+train_data <- df[train_indices, ]
+test_data <- df[-train_indices, ]
+
+# MICE Imputation on Training Data
+# Check missing summary first
+md.pattern(train_data)
+
+# Apply MICE with CART method (Classification and Regression Trees)
+mice_train <- mice(train_data, method = "cart", m = 1, seed = 123)
+
+# Complete the data (first imputed dataset)
+train_data_imputed <- complete(mice_train)
+
+# Optional: Check again
+summary(train_data_imputed)
 ```
+
 
 
 # 6. Predictor and Target Setup
@@ -186,7 +285,7 @@ roc_obj <- roc(df$ECIG_BINARY, probs)
 auc(roc_obj)
 
 plot(roc_obj, col = "blue", lwd = 2, main = "ROC Curve")
-abline(a = 0, b = 1, lty = 2, col = "gray")
+abline(a = 0, b = 1, lty = 2, col = "red")
 ```
 
 
@@ -253,6 +352,11 @@ abline(a = 0, b = 1, lty = 2, col = "gray")
 ```
 
 
+# 17. Feature Importance
+```{r}
+# Visualize feature importance
+varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "darkgreen")
+```
 
 
 
