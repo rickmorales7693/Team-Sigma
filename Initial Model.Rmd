@@ -8,7 +8,7 @@ output: pdf_document
 # Libraries
 ```{r}
 library(haven)
-library(mice)
+library(mice) # For imputation
 library(tidyverse)
 library(caret)
 library(glmnet)
@@ -225,7 +225,7 @@ Survey data assumes missing values are classified as missing at random. Multiple
 ```{r}
 # Calculate imputed values with training data
 methods(mice)
-imp <- mice(train, method = "cart", m = 1, maxit = 1)
+imp <- mice(train, method = "cart", m = 1, maxit = 1, seed = 123)
 #imputed_values <- mice(train, method = "rf)
 ```
 ```{r}
