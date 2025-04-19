@@ -210,7 +210,9 @@ df <- brfss_2017_cleaned %>%
 # BMI = (weight in pounds / (height in inches)^2) * 703
 
 df <- df %>%
-  mutate(BMI_COMP = (WEIGHT / (HEIGHT^2)) * 703)
+  mutate(
+    BMI_COMP = (WEIGHT * 703) / (HEIGHT^2)
+  )
 
 # Split into Training and Test sets
 set.seed(123)
@@ -235,13 +237,30 @@ summary(train_data_imputed)
 
 # 7. Predictor and Target Setup
 ```{r}
+# Filter out bad BMI values
+df <- df %>%
+  filter(is.finite(BMI_COMP), HEIGHT > 0, WEIGHT > 0)
+
+# Use BMI_COMP instead of BMI
 predictors <- c("AGE80", "BMI_COMP", "SMOKER_COMP", "STATE", "ADDEPEV",
                 "CHCCOPD", "CHECKUP", "GENHLTH", "HLTHPLN",
-                "EDUCA_COMP", "INCOME_COMP", "SEX", "WEEKLY_DRINK")
+                "EDUCA_COMP", "INCOME_COMP", "SEX", "ALCDAY5")
 
+# Convert factor predictors to numeric if needed
+df[predictors] <- lapply(df[predictors], function(col) {
+  if (is.factor(col)) suppressWarnings(as.numeric(as.character(col))) else col
+})
+
+df <- df %>%
+  filter(if_any(all_of(predictors), ~ !is.na(.) & is.finite(.)))
+
+# Create predictor matrix
 x <- data.matrix(df[, predictors])
+
+# Target
 y <- df$ECIG_COMP
 
+# Final modeling data frame
 data <- data.frame(x, y)
 ```
 
@@ -382,7 +401,7 @@ auc(rf_roc)
 
 # Plot ROC
 plot(rf_roc, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
-abline(a = 0, b = 1, lty = 2, col = "gray")
+abline(a = 0, b = 1, lty = 2, col = "red")
 ```
 
 
