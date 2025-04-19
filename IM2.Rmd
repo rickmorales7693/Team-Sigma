@@ -19,6 +19,7 @@ library(pROC)
 library(ggplot2)
 library(randomForest)
 library(mice)
+library(tidyr)
 ```
 
 # 2. Load Data
@@ -165,7 +166,33 @@ head(brfss_2017_cleaned)
 ```
 
 
-# 5. Prepare Dataset (filtered and relevant variables only) and Imputation
+# 5. Missing Value Summary
+```{r}
+# Summarize missing values (count and %)
+missing_summary <- brfss_2017_cleaned %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Missing_Count") %>%
+  mutate(Missing_Percent = round((Missing_Count / nrow(brfss_2017_cleaned)) * 100, 2)) %>%
+  arrange(desc(Missing_Count)) %>%
+  filter(Missing_Count > 0)
+
+# Show missing value table
+print(missing_summary)
+
+# Optional: Visualize top 15 missing variables
+top_missing <- missing_summary %>% slice_max(order_by = Missing_Count, n = 25)
+
+ggplot(top_missing, aes(x = reorder(Variable, Missing_Count), y = Missing_Count)) +
+  geom_col(fill = "tomato") +
+  coord_flip() +
+  labs(title = "Top 25 Variables with Missing Values",
+       x = "Variable",
+       y = "Missing Count") +
+  theme_minimal()
+```
+
+
+# 6. Prepare Dataset (filtered and relevant variables only) and Imputation
 ```{r}
 # Ensure unique column names
 colnames(brfss_2017_cleaned) <- make.names(colnames(brfss_2017_cleaned), unique = TRUE)
@@ -176,6 +203,14 @@ brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
 # Filter for ECIG_COMP values and asthmatic respondents
 df <- brfss_2017_cleaned %>%
   filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1)
+
+# Compute BMI from height and weight, then standardize it
+# height in meters, weight in kg
+# Height in inches is variable HEIGHT, Weight in lbs is WEIGHT
+# BMI = (weight in pounds / (height in inches)^2) * 703
+
+df <- df %>%
+  mutate(BMI_COMP = (WEIGHT / (HEIGHT^2)) * 703)
 
 # Split into Training and Test sets
 set.seed(123)
@@ -198,10 +233,9 @@ summary(train_data_imputed)
 ```
 
 
-
-# 6. Predictor and Target Setup
+# 7. Predictor and Target Setup
 ```{r}
-predictors <- c("AGE80", "BMI", "SMOKER_COMP", "STATE", "ADDEPEV",
+predictors <- c("AGE80", "BMI_COMP", "SMOKER_COMP", "STATE", "ADDEPEV",
                 "CHCCOPD", "CHECKUP", "GENHLTH", "HLTHPLN",
                 "EDUCA_COMP", "INCOME_COMP", "SEX", "WEEKLY_DRINK")
 
@@ -212,14 +246,14 @@ data <- data.frame(x, y)
 ```
 
 
-# 7. Linear Model
+# 8. Linear Model
 ```{r}
 model <- lm(y ~ ., data = data)
 summary(model)
 ```
 
 
-# 8. Model Assumptions
+# 9. Model Assumptions
 ```{r}
 # Visualize residuals
 plot(model)
@@ -232,7 +266,7 @@ vif(model)
 ```
 
 
-# 9. Cross-Validation (Lasso for example)
+# 10. Cross-Validation (Lasso for example)
 ```{r}
 set.seed(123)
 cv_model <- train(
@@ -245,7 +279,7 @@ print(cv_model)
 ```
 
 
-# 10. RMSE Calculation
+# 11. RMSE Calculation
 ```{r}
 predictions <- predict(model, newdata = data.frame(x))
 actual_values <- y
@@ -254,7 +288,7 @@ print(paste("Train RMSE:", round(rmse, 3)))
 ```
 
 
-# 11. Visualization
+# 12. Visualization
 ```{r}
 # Residual Plot
 ggplot(data.frame(resid = residuals(model)), aes(x = resid)) +
@@ -270,7 +304,7 @@ ggplot(coef_df, aes(x = reorder(Variable, abs(Coefficient)), y = Coefficient)) +
 ```
 
 
-# 12. Logistic Model (Binary: Current User vs. Others)
+# 13. Logistic Model (Binary: Current User vs. Others)
 ```{r}
 df$ECIG_BINARY <- ifelse(df$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0)
 log_model <- glm(ECIG_BINARY ~ ., data = data.frame(df[, predictors], ECIG_BINARY = df$ECIG_BINARY), family = "binomial")
@@ -278,7 +312,7 @@ summary(log_model)
 ```
 
 
-# 13. ROC and AUC Plot
+# 14. ROC and AUC Plot
 ```{r}
 probs <- predict(log_model, type = "response")
 roc_obj <- roc(df$ECIG_BINARY, probs)
@@ -289,7 +323,7 @@ abline(a = 0, b = 1, lty = 2, col = "red")
 ```
 
 
-# 14. Calibration Plot
+# 15. Calibration Plot
 ```{r}
 # Recalculate probabilities (if needed)
 probs <- predict(log_model, type = "response")
@@ -315,7 +349,7 @@ ggplot(calib) +
 ```
 
 
-# 15. Random Forest Model + ROC/AUC
+# 16. Random Forest Model + ROC/AUC
 ```{r}
 # Convert outcome to factor for classification
 df$ECIG_BINARY <- factor(ifelse(df$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0))
@@ -335,7 +369,7 @@ print(rf_model)
 ```
 
 
-# 16. Random Forest ROC & AUC
+# 17. Random Forest ROC & AUC
 ```{r}
 # Predicted probabilities
 rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
@@ -352,11 +386,14 @@ abline(a = 0, b = 1, lty = 2, col = "gray")
 ```
 
 
-# 17. Feature Importance
+# 18. Feature Importance
 ```{r}
 # Visualize feature importance
 varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "darkgreen")
 ```
+
+
+
 
 
 
