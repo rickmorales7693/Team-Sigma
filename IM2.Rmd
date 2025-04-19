@@ -1,0 +1,258 @@
+---
+title: "IM2"
+author: "Rick Morales"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+# 1. Libraries
+```{r}
+library(haven)
+library(dplyr)
+library(ggplot2)
+library(glmnet)
+library(parameters)
+library(see)
+library(car)
+library(caret)
+library(pROC)
+library(ggplot2)
+library(randomForest)
+```
+
+# 2. Load Data
+```{r}
+brfss_2017 <- read_xpt("LLCP2017.XPT")
+```
+
+
+# 3. Clean Data (carry over from Preprocessing)
+```{r}
+brfss_2017_cleaned <- brfss_2017 %>%
+  select(-c(2:6), -c(10:27), -31, -37, -40, -45, -c(53:57), -c(62:64), -72,
+         -c(80:82), -85, -c(87:89), -c(97:102), -106, -108, -110, -c(112:246),
+         -c(255:258), -c(326:327), -c(330:337), -c(340:345), -c(356:357))
+```
+
+
+# 4.Renamed For Clarity
+```{r}
+names(brfss_2017_cleaned)[1] <- "STATE"
+names(brfss_2017_cleaned)[4] <- "PSU"
+names(brfss_2017_cleaned)[8] <- "HLTHPLN"
+names(brfss_2017_cleaned)[9] <- "PERSDOC"
+names(brfss_2017_cleaned)[11] <- "CHECKUP"
+names(brfss_2017_cleaned)[12] <- "BPHIGH"
+names(brfss_2017_cleaned)[13] <- "CHOLCHK"
+names(brfss_2017_cleaned)[14] <- "TOLDHI"
+names(brfss_2017_cleaned)[15] <- "CVDINFR"
+names(brfss_2017_cleaned)[16] <- "CVDCRHD"
+names(brfss_2017_cleaned)[17] <- "CVDSTRK"
+names(brfss_2017_cleaned)[18] <- "ASTHMA"
+names(brfss_2017_cleaned)[21] <- "CHCCOPD"
+names(brfss_2017_cleaned)[22] <- "HAVARTH"
+names(brfss_2017_cleaned)[23] <- "ADDEPEV"
+names(brfss_2017_cleaned)[25] <- "DIABETES"
+names(brfss_2017_cleaned)[29] <- "RENTHOME"
+names(brfss_2017_cleaned)[30] <- "VETERAN"
+names(brfss_2017_cleaned)[31] <- "EMPLOYED"
+names(brfss_2017_cleaned)[33] <- "INCOME"
+names(brfss_2017_cleaned)[35] <- "WEIGHT"
+names(brfss_2017_cleaned)[36] <- "HEIGHT"
+names(brfss_2017_cleaned)[44] <- "USENOW"
+names(brfss_2017_cleaned)[47] <- "FRUIT"
+names(brfss_2017_cleaned)[48] <- "FRUIT_JUICE"
+names(brfss_2017_cleaned)[49] <- "GREEN_VEG"
+names(brfss_2017_cleaned)[50] <- "FRENCHF"
+names(brfss_2017_cleaned)[51] <- "POTATO"
+names(brfss_2017_cleaned)[52] <- "OTHER_VEG"
+names(brfss_2017_cleaned)[53] <- "EXERCISE_ANY"
+names(brfss_2017_cleaned)[56] <- "FLUSHOT"
+names(brfss_2017_cleaned)[57] <- "PNEUMONIA_VAC"
+names(brfss_2017_cleaned)[58] <- "HIVTEST"
+names(brfss_2017_cleaned)[59] <- "HIVRISK"
+names(brfss_2017_cleaned)[81] <- "ASTHMA_NOW_COMP"
+names(brfss_2017_cleaned)[96] <- "AGE80"
+names(brfss_2017_cleaned)[101] <- "BMI"
+names(brfss_2017_cleaned)[105] <- "EDUCA_COMP"
+names(brfss_2017_cleaned)[106] <- "INCOME_COMP"
+names(brfss_2017_cleaned)[107] <- "SMOKER_COMP"
+names(brfss_2017_cleaned)[109] <- "ECIG_COMP"
+names(brfss_2017_cleaned)[114] <- "WEEKLY_DRINK"
+names(brfss_2017_cleaned)[90] <- "GENHLTH"
+
+
+head(brfss_2017_cleaned)
+```
+
+
+# 5. Prepare Dataset (filtered and relevant variables only)
+```{r}
+# Ensure unique column names
+colnames(brfss_2017_cleaned) <- make.names(colnames(brfss_2017_cleaned), unique = TRUE)
+
+# Replace NAs
+brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
+
+# Filter for ECIG_COMP values and asthmatic respondents
+df <- brfss_2017_cleaned %>%
+  filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1)
+```
+
+
+# 6. Predictor and Target Setup
+```{r}
+predictors <- c("AGE80", "BMI", "SMOKER_COMP", "STATE", "ADDEPEV",
+                "CHCCOPD", "CHECKUP", "GENHLTH", "HLTHPLN",
+                "EDUCA_COMP", "INCOME_COMP", "SEX", "WEEKLY_DRINK")
+
+x <- data.matrix(df[, predictors])
+y <- df$ECIG_COMP
+
+data <- data.frame(x, y)
+```
+
+
+# 7. Linear Model
+```{r}
+model <- lm(y ~ ., data = data)
+summary(model)
+```
+
+
+# 8. Model Assumptions
+```{r}
+# Visualize residuals
+plot(model)
+
+# Check model parameters
+model_parameters(model)
+
+# VIF (multicollinearity)
+vif(model)
+```
+
+
+# 9. Cross-Validation (Lasso for example)
+```{r}
+set.seed(123)
+cv_model <- train(
+  x = x,
+  y = y,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 5)
+)
+print(cv_model)
+```
+
+
+# 10. RMSE Calculation
+```{r}
+predictions <- predict(model, newdata = data.frame(x))
+actual_values <- y
+rmse <- sqrt(mean((actual_values - predictions)^2))
+print(paste("Train RMSE:", round(rmse, 3)))
+```
+
+
+# 11. Visualization
+```{r}
+# Residual Plot
+ggplot(data.frame(resid = residuals(model)), aes(x = resid)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+  labs(title = "Residuals Distribution", x = "Residuals")
+
+# Coefficient Importance Plot
+coef_df <- data.frame(Variable = names(coef(model))[-1], Coefficient = coef(model)[-1])
+ggplot(coef_df, aes(x = reorder(Variable, abs(Coefficient)), y = Coefficient)) +
+  geom_col(fill = "orange") +
+  coord_flip() +
+  labs(title = "Coefficient Estimates", x = "Variables", y = "Coefficient")
+```
+
+
+# 12. Logistic Model (Binary: Current User vs. Others)
+```{r}
+df$ECIG_BINARY <- ifelse(df$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0)
+log_model <- glm(ECIG_BINARY ~ ., data = data.frame(df[, predictors], ECIG_BINARY = df$ECIG_BINARY), family = "binomial")
+summary(log_model)
+```
+
+
+# 13. ROC and AUC Plot
+```{r}
+probs <- predict(log_model, type = "response")
+roc_obj <- roc(df$ECIG_BINARY, probs)
+auc(roc_obj)
+
+plot(roc_obj, col = "blue", lwd = 2, main = "ROC Curve")
+abline(a = 0, b = 1, lty = 2, col = "gray")
+```
+
+
+# 14. Calibration Plot
+```{r}
+# Recalculate probabilities (if needed)
+probs <- predict(log_model, type = "response")
+
+# Create a dataframe for plotting
+calib_data <- data.frame(
+  predicted = probs,
+  actual = factor(df$ECIG_BINARY)
+)
+
+# Use caret to create calibration data
+calib <- calibration(actual ~ predicted, data = calib_data, class = "1", cuts = 10)
+
+# Plot the calibration curve
+ggplot(calib) +
+  geom_line(aes(x = midpoint, y = Percent), color = "blue", linewidth = 1.2) +
+  geom_point(aes(x = midpoint, y = Percent), color = "blue", size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "gray40") +
+  labs(title = "Calibration Plot",
+       x = "Predicted Probability",
+       y = "Observed Proportion (Current User)") +
+  theme_minimal(base_size = 14)
+```
+
+
+# 15. Random Forest Model + ROC/AUC
+```{r}
+# Convert outcome to factor for classification
+df$ECIG_BINARY <- factor(ifelse(df$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0))
+
+# Train Random Forest model
+set.seed(123)
+rf_model <- randomForest(
+  x = df[, predictors],
+  y = df$ECIG_BINARY,
+  ntree = 100,           # number of trees
+  mtry = 3,              # number of variables per split (can tune)
+  importance = TRUE
+)
+
+# Check model summary
+print(rf_model)
+```
+
+
+# 16. Random Forest ROC & AUC
+```{r}
+# Predicted probabilities
+rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc <- roc(df$ECIG_BINARY, rf_probs)
+
+# AUC
+auc(rf_roc)
+
+# Plot ROC
+plot(rf_roc, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
+abline(a = 0, b = 1, lty = 2, col = "gray")
+```
+
+
+
+
+
