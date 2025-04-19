@@ -33,7 +33,7 @@ colnames(brfss_2017)
 
 # Pre-Processing
 
-Additional Cleaning
+Additional Cleaning (Erika)
 
 Removal of missing data consists of utilizing the select function from the dplyr library. Variables with no missing values such as FMONTH and IDATE are removed due to irrelevance in the study. Columns containing 30% or more missing values are removed from the dataset, decreasing the total # of columns from 358 to 149.
 ```{r}
@@ -43,7 +43,7 @@ brfss_2017_cleaned <- brfss_2017 %>%
 head(brfss_2017_cleaned)
 ```
 
-Variables below were renamed to improve understanding and code readability. Inserted characters such as underscores before variable names are removed. Variable names are consistent case-wise with all column names in uppercase format. Since data is already in wide format, pivoting is not needed. ECT.
+Variables below were renamed to improve understanding and code readability. Inserted characters such as underscores before variable names are removed. Variable names are consistent case-wise with all column names in uppercase format. Since data is already in wide format, pivoting is not needed. (Erika)
 ```{r}
 #Duplicated row check
 #sum(duplicated(brfss_2017_cleaned))
@@ -172,6 +172,56 @@ names(brfss_2017_cleaned)[149] <- "AIDSTEST_COMP"
 
 head(brfss_2017_cleaned)
 ```
+# Additional Column Removal for Source Inputs and Computations Not Needed (Erika, Rick)
+```{r}
+#BMI Sources
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(HEIGHT, WEIGHT, HT_COMP_IN, HT_COMP_M, WT_COMP_KILO))
+
+#ECIG_COMP Sources
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(ECIGARET))
+
+#SMOKER_COMP Sources
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(SMOKE100))
+
+#ALCDAY5 Computations
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(DRINKANY_30, DROCDY3, BINGE_COMP, WEEKLY_DRINK, HEAVY_DRINK))
+
+#ASTHMA Computations
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(ASTHMA_LIFE, ASTHMA_NOW_COMP, ASTHMA_COMP))
+
+#EDUCA Computations
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(EDUCA_COMP))
+
+#GENHLTH Computations
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(RFHLTH))
+
+#HLTHPLN Computations
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(HCVU651))
+
+#INCOME Computations
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(INCOME_COMP))
+
+#PHYS_CATEGORY Source
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(PHYSHLTH))
+
+#Remaining weighting variables, calculations and imputations not applicable in study
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(MSCODE, STSTR, STRATUM_WGHT, RAWRAKE, WT2RAKE, DUALCOR, LLCPWT2, LLCPWT, PHYS_COMP, MENT_COMP, RFHYPES, CHOLCH1, HICHOL_COMP, ARTHRITIS_DIAGNOS, LIMIT_ACTIVITY, LIMIT_WORK, LIMIT_SOCIAL, MULTI_RACE, HISPANIC_COMP, RACE_COMP, RACEG21, RACEGR3, RACE_G1, PRACE_COMP, AGEG5YR, AGE65YR, AGE_G, BMI_CAT, BMI_OVER, CHILD_COMP, SMOKENOW_COMP, ECIG_NOW_COMP, FRUITJUICE_COMP, FRUITJUICE_COMP2, GREEN_VEG_COMP, FRENCHF_COMP, POTATO_COMP, OTHER_VEG_COMP, MISSING_FRUIT, MISSING_VEG, MISS_ANY_FRUIT, MISS_ANY_VEG, TOTAL_FRUIT, TOTAL_VEG, ATLEAST1_FRUIT, ATLEAST1_VEG, MORE16_FRUIT, MORE23_VEG, FRUIT_EXCLUDE, VEG_EXCLUDE, LEISURE_COMP, MAX_OXYGEN, FUNC_CAPACITY, STRENGTH_FREQ, MISSING_PHYS, PHYS_IDX, `150_PHYS_COMP`, `300_PHYS_COMP`, `300_PHYS2_COMP`, MUSCLE_RECOMMEND, AEROBIC_STRENGTH, AEROBIC_STRENGTH2, SEATBELT_COMP, SEATBELT_COMP2, AIDSTEST_COMP))
+```
+
+```{r}
+brfss_2017_cleaned
+```
 
 
 # Missing Data Summary Table (Rick)
@@ -183,23 +233,35 @@ print(missing_summary)
 ```
 
 
-# Value Imputation
+# Creation of VapeStatus and Recoding STATE Variable (Erika)
 ```{r}
 # Replace NA values with O for entire data frame
-brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
+#brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
 
 # Check if any NA values remain
 colSums(is.na(brfss_2017_cleaned))
 
 # Create VapeStatus based on ECIG_COMP
-df <- brfss_2017_cleaned %>%
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
     filter(!is.na(ECIG_COMP)) %>%
     mutate(VapeStatus = factor(ECIG_COMP, 
                                levels = c(1, 2, 3, 4, 9),
                                labels = c("Current User", "Current User", "Former User", "Never Used", "No Response")))
+
+df <- brfss_2017_cleaned %>%
+    filter(!is.na(ECIG_COMP)) %>%
+    mutate(VapeStatus = factor(ECIG_COMP, 
+                               levels = c(1, 2, 3, 4, 9)))
+
+# VapeStatus Source Removal
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(ECIG_COMP))
+
+#df <- df %>%
+   # select(-c(ECIG_COMP))
     
 # Re-code STATE column
-df$STATE_ABBR <- recode(df$STATE,
+brfss_2017_cleaned$STATE_ABBR <- recode(df$STATE,
                        '1' = 'AL',
                        '2' = 'AK',
                        '4' = 'AZ',
@@ -253,6 +315,13 @@ df$STATE_ABBR <- recode(df$STATE,
                        '56' = 'WY',
                        '66' = 'GU',
                        '72' = 'PR')
+
+# STATE_ABBR Source Removal
+brfss_2017_cleaned <- brfss_2017_cleaned %>%
+    select(-c(STATE))
+```
+```{r}
+df
 ```
 
 
@@ -295,10 +364,10 @@ mse <- mean((actual_values - predictions)^2)
 mse
 
 # Perform k-fold cross-validation to find optimal lambda value
-cv_model <- cv.glmnet(x, y, alpha = 1)
+#cv_model <- cv.glmnet(x, y, alpha = 1)
 
 # Produce plot of test MSE by lambda value
-plot(cv_model)
+#plot(cv_model)
 
 # Optimal splitting ratio
 random_values <- rnorm(n = 62411, mean = 0, sd = 1)
@@ -339,18 +408,18 @@ calcSplitRatio <- function(p = NA, df) {
 
 result <- calcSplitRatio(df = brfss_2017_cleaned)
 ```
-
+# Imputation (Erika)
 
 # Encoding
 ```{r}
 # No categorical variables to encode - ECIG_COMP is the encoding of VapeStatus & STATE is the encoding of STATE_ABBR
 # Remove categorical variables from dataset
-df <- df %>%
-    select(-c(150:151))
+#df <- df %>%
+#    select(-c(150:151))
 ```
 
 
-# Arithmetic Transformations
+# Arithmetic Transformations (Stephanie)
 ```{r}
 # Logarithmic Transformation
 df$log_x <- log(df$ECIG_COMP)
@@ -360,7 +429,7 @@ df$sqrt_x <- sqrt(df$ECIG_COMP)
 ```
 
 
-# Normalize and/or Scale
+# Normalize and/or Scale (Stephanie)
 ```{r}
 # Applying preProcess for Min-Max normalization
 preprocessed_data <- preProcess(df[, -c(1:4, 18, 80)], method = "range") # Remove first 4 columns since they are unique variables; Remove ASTHMA & ASTHMA_LIFE since they have no variation
