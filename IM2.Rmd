@@ -20,7 +20,9 @@ library(ggplot2)
 library(randomForest)
 library(mice)
 library(tidyr)
+library(tibble)
 ```
+
 
 # 2. Load Data
 ```{r}
@@ -200,9 +202,13 @@ colnames(brfss_2017_cleaned) <- make.names(colnames(brfss_2017_cleaned), unique 
 # Replace NAs
 brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
 
-# Filter for ECIG_COMP values and asthmatic respondents
+# Filter for valid ECIG_COMP, asthma history, and current asthma
 df <- brfss_2017_cleaned %>%
-  filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1) %>%
+  filter(
+    ECIG_COMP != 0,
+    ASTHMA == 1,
+    ASTHMA_NOW_COMP == 1
+  ) %>%
   mutate(BMI_COMP = (WEIGHT * 703) / (HEIGHT^2))
 
 # Split into Training and Test sets
@@ -223,6 +229,29 @@ train_data_imputed <- complete(mice_train)
 
 # Optional: Check again
 summary(train_data_imputed)
+
+# Create labeled cross-tabulation summary
+table(brfss_2017_cleaned$ASTHMA_NOW_COMP, brfss_2017_cleaned$ASTHMA)
+
+asthma_table <- brfss_2017_cleaned %>%
+  mutate(
+    ASTHMA_LABEL = case_when(
+      ASTHMA == 1 ~ "ASTHMA == 1\n(Yes, ever told)",
+      ASTHMA == 2 ~ "ASTHMA == 2\n(No, never told)",
+      ASTHMA %in% c(7, 9) ~ "ASTHMA == 9\n(Don't know/refused/missing)"
+    ),
+    ASTHMA_NOW_LABEL = case_when(
+      ASTHMA_NOW_COMP == 1 ~ "1 (Currently has asthma)",
+      ASTHMA_NOW_COMP == 2 ~ "2 (Does NOT currently have asthma)",
+      ASTHMA_NOW_COMP == 9 ~ "9 (Missing/invalid)"
+    )
+  ) %>%
+  filter(!is.na(ASTHMA_LABEL), !is.na(ASTHMA_NOW_LABEL)) %>%
+  count(ASTHMA_NOW_LABEL, ASTHMA_LABEL) %>%
+  pivot_wider(names_from = ASTHMA_LABEL, values_from = n, values_fill = 0)
+
+# View table
+print(asthma_table)
 ```
 
 
