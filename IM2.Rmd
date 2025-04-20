@@ -202,17 +202,8 @@ brfss_2017_cleaned[is.na(brfss_2017_cleaned)] <- 0
 
 # Filter for ECIG_COMP values and asthmatic respondents
 df <- brfss_2017_cleaned %>%
-  filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1)
-
-# Compute BMI from height and weight, then standardize it
-# height in meters, weight in kg
-# Height in inches is variable HEIGHT, Weight in lbs is WEIGHT
-# BMI = (weight in pounds / (height in inches)^2) * 703
-
-df <- df %>%
-  mutate(
-    BMI_COMP = (WEIGHT * 703) / (HEIGHT^2)
-  )
+  filter(ECIG_COMP != 0 & ASTHMA_NOW_COMP == 1) %>%
+  mutate(BMI_COMP = (WEIGHT * 703) / (HEIGHT^2))
 
 # Split into Training and Test sets
 set.seed(123)
