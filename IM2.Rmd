@@ -20,7 +20,6 @@ library(ggplot2)
 library(randomForest)
 library(mice)
 library(tidyr)
-library(tibble)
 ```
 
 
@@ -428,7 +427,7 @@ abline(a = 0, b = 1, lty = 2, col = "red")
 # 18. Feature Importance
 ```{r}
 # Visualize feature importance
-varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "darkgreen")
+varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "black")
 ```
 
 
