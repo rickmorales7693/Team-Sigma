@@ -20,6 +20,8 @@ library(car)  # For Variance Inflation Factor (VIF)
 library(ordinalNet)
 library(plyr)
 library(smotefamily)
+library(MASS)
+library(MLmetrics)
 
 brfss_2017 <- read_xpt("LLCP2017.XPT")
 
@@ -285,6 +287,10 @@ predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5'
 ```{r}
 x_train <- data.matrix(train[, predictor_vars])
 y_train <- train$ECIG_COMP
+
+# Revalue factor levels
+y_train <- revalue(y_train, c("1" = "X1", "2" = "X2", "3" = "X3", "4" = "X4"))
+levels(y_train)
 
 # Combine x_train and y_train into one data frame
 train_lm <- data.frame(y_train, x_train)
