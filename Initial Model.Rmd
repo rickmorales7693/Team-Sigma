@@ -17,6 +17,9 @@ library(see)
 library(lmtest)  # For assumption testing
 library(ggplot2)
 library(car)  # For Variance Inflation Factor (VIF)
+library(ordinalNet)
+library(plyr)
+library(smotefamily)
 
 brfss_2017 <- read_xpt("LLCP2017.XPT")
 
@@ -29,7 +32,7 @@ colnames(brfss_2017)
 # Cleaned Data
 ```{r}
 brfss_2017_cleaned <- brfss_2017 %>%
-    select(-c(2:6), -c(10:27), -31, -37, -40, -45, -c(53:57), -c(62:64), -72, -c(80:82), -85, -c(87:89), -c(97:102), -106, -108, -110, -c(112:246), ... = -c(255:258), -c(326:327), -c(330:337), -c(340:345), -c(356:357))
+    dplyr::select(-c(2:6), -c(10:27), -31, -37, -40, -45, -c(53:57), -c(62:64), -72, -c(80:82), -85, -c(87:89), -c(97:102), -106, -108, -110, -c(112:246), ... = -c(255:258), -c(326:327), -c(330:337), -c(340:345), -c(356:357))
 
 head(brfss_2017_cleaned)
 ```
@@ -162,16 +165,26 @@ names(brfss_2017_cleaned)[149] <- "AIDSTEST_COMP"
 head(brfss_2017_cleaned)
 ```
 
-
 # Drop source variables and target leakage risks
 ```{r}
 # Remove certain calculated variables
 brfss_2017_cleaned <- brfss_2017_cleaned %>%
-  select(-c(35, 36, 43, 62, 63, 64, 65, 66, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 99, 100, 102, 103, 104, 105, 106, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149))
+  dplyr::select(-c(35, 36, 43, 62, 63, 64, 65, 66, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 99, 100, 102, 103, 104, 105, 106, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149))
+
+# For calculated variables with values of 9, change values to NA
+#brfss_2017_cleaned %>%
+  #  select(ECIG_COMP, SMOKER_COMP) %>%
+   # mutate(ECIG_COMP = na_if(ECIG_COMP, 9)) %>%
+   # mutate(SMOKER_COMP = na_if(SMOKER_COMP, 9))
+
+#brfss_2017_cleaned %>%
+   # mutate(ECIG_COMP = replace(ECIG_COMP, ECIG_COMP == "9", NA))
+brfss_2017_cleaned$ECIG_COMP[brfss_2017_cleaned$ECIG_COMP == 9] <- NA
+brfss_2017_cleaned$SMOKER_COMP[brfss_2017_cleaned$SMOKER_COMP == 9] <- NA
 
 # Remove SEQNO since it's a unique identifier
 brfss_2017_cleaned <- brfss_2017_cleaned %>%
-    select(-c(SEQNO))
+    dplyr::select(-c(SEQNO))
 
 # Filter for only asthmatics
 brfss_2017_cleaned <- brfss_2017_cleaned %>%
@@ -200,14 +213,24 @@ cor_matrix <- cor(brfss_2017_cleaned[c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', '
 # Visualizing the correlation matrix
 image(cor_matrix, main = "Correlation Matrix", col = colorRampPalette(c("blue", "white", "red"))(20))
 ```
-
-
-# Train-Test Split
 ```{r}
-set.seed(123)
-split <- sample(nrow(brfss_2017_cleaned), 0.6 * nrow(brfss_2017_cleaned))
+brfss_2017_cleaned
+is.factor(brfss_2017_cleaned$ECIG_COMP)
+```
+
+
+# Train-Test Split for Multi Class
+```{r}
+set.seed(124)
+#split <- sample(nrow(brfss_2017_cleaned), 0.6 * nrow(brfss_2017_cleaned))
+brfss_2017_cleaned$ECIG_COMP <- as.factor(brfss_2017_cleaned$ECIG_COMP)
+split <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = .7, list = FALSE)
 train <- brfss_2017_cleaned[split, ]
 test <- brfss_2017_cleaned[-split, ]
+```
+
+```{r}
+train
 ```
 
 
@@ -229,6 +252,15 @@ train <- complete(imp)
 train
 ```
 
+# Class Imbalance Check Multi Class
+```{r}
+ggplot(train, aes(x = as.factor(ECIG_COMP), fill = as.factor(ECIG_COMP))) + 
+    geom_bar() + 
+    scale_x_discrete(labels = c('Everyday', 'Some Days', 'Former', 'Never Used')) + 
+    labs(title = "Class Proportions for E-Cigarette Smoking Status", x = "E-Cig Smoking Status")
+```
+
+
 # Predictor Variables
 ```{r}
 predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5',
@@ -238,95 +270,135 @@ predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5'
 
 # Model Fitting (Linear Model)
 ```{r}
+#x_train <- data.matrix(train[, predictor_vars])
+#y_train <- train$ECIG_COMP
+
+# Combine x_train and y_train into one data frame
+#train_lm <- data.frame(y_train, x_train)
+
+# Fit the model properly using all predictors
+#model <- lm(y_train ~ ., data = train_lm)
+#summary(model)
+```
+
+# Model Fitting (Ordinal Logistic Regression)
+```{r}
 x_train <- data.matrix(train[, predictor_vars])
 y_train <- train$ECIG_COMP
 
 # Combine x_train and y_train into one data frame
 train_lm <- data.frame(y_train, x_train)
 
-# Fit the model properly using all predictors
-model <- lm(y_train ~ ., data = train_lm)
+set.seed(123)
+model <- polr(y_train ~ ., data = train_lm)
+model
+```
+```{r}
 summary(model)
+model_parameters(model)
+vif(model)
+```
+```{r}
+
+```
+
+
+Stratified K-Fold & SMOTE
+```{r}
+ctrl <- trainControl(method = "cv", #cross validation
+                     number = 5, # 5 folds
+                     sampling = "smote",
+                     classProbs = TRUE,
+                     summaryFunction = multiClassSummary)
+ordLogMod <- train(y_train ~ .,
+                       data = train_lm,
+                       method = "polr",
+                       trControl = ctrl)
+ordLogMod
 ```
 
 
 # Assumption Checks
 ```{r}
 # Residual plots
-plot(model)
+#plot(model)
 
 # Test for Autocorrelation
-dwtest(model)
+#dwtest(model)
 ```
 
 
 # Cross-Validation (5-Fold using caret + glmnet)
 ```{r}
 # Remove rows with missing values in either predictors or target
-complete_rows <- complete.cases(x_train, y_train)
-x_train_clean <- x_train[complete_rows, ]
-y_train_clean <- y_train[complete_rows]
+#complete_rows <- complete.cases(x_train, y_train)
+#x_train_clean <- x_train[complete_rows, ]
+#y_train_clean <- y_train[complete_rows]
 
 # Then run cross-validation
-cv_model <- train(x = x_train_clean, y = y_train_clean,
-                  method = "glmnet",
-                  trControl = trainControl(method = "cv", number = 5))
+#cv_model <- train(x = x_train_clean, y = y_train_clean,
+                  #method = "glmnet",
+                  #trControl = trainControl(method = "cv", number = 5))
 
-print(cv_model)
+#print(cv_model)
 ```
 
 
 # Overfitting Check
 ```{r}
 # Rebuild x_test
-x_test <- test[, predictor_vars]
-x_test <- data.frame(x_test)
+#x_test <- test[, predictor_vars]
+#x_test <- data.frame(x_test)
 
 # Predict using the linear model
-predictions <- predict(model, newdata = x_test)
+#predictions <- predict(model, newdata = x_test)
 
 # Remove any rows with NA values in either predictions or actual values
-valid_rows <- complete.cases(predictions, test$ECIG_COMP)
-y_test_clean <- test$ECIG_COMP[valid_rows]
-predictions_clean <- predictions[valid_rows]
+#valid_rows <- complete.cases(predictions, test$ECIG_COMP)
+#y_test_clean <- test$ECIG_COMP[valid_rows]
+#predictions_clean <- predictions[valid_rows]
 
 # Calculate RMSE
-rmse_train <- sqrt(mean((y_train - predict(model))^2))
-rmse_test <- sqrt(mean((y_test_clean - predictions_clean)^2))
+#rmse_train <- sqrt(mean((y_train - predict(model))^2))
+#rmse_test <- sqrt(mean((y_test_clean - predictions_clean)^2))
 
-print(paste("Train RMSE:", round(rmse_train, 3)))
-print(paste("Test RMSE:", round(rmse_test, 3)))
+#print(paste("Train RMSE:", round(rmse_train, 3)))
+#print(paste("Test RMSE:", round(rmse_test, 3)))
 ```
 
 
 # RMSE Comparison
 ```{r}
 # Define RMSE values
-rmse_train <- 1.253
-rmse_test <- 0.513
+#rmse_train <- 1.253
+#rmse_test <- 0.513
 
 # Create data frame
-rmse_data <- data.frame(
-  Dataset = c("Train RMSE", "Test RMSE"),
-  RMSE = c(rmse_train, rmse_test)
-)
+#rmse_data <- data.frame(
+#  Dataset = c("Train RMSE", "Test RMSE"),
+#  RMSE = c(rmse_train, rmse_test)
+#)
 
 # Create the bar plot
-ggplot(rmse_data, aes(x = Dataset, y = RMSE)) +
-  geom_bar(stat = "identity", fill = "orange", width = 0.6) +
-  geom_text(aes(label = round(RMSE, 3)), vjust = -0.5, size = 5) +
-  labs(
-    title = "Root Mean Squared Error (RMSE)",
-    y = "RMSE Value",
-    x = NULL
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "none"
-  )
+#ggplot(rmse_data, aes(x = Dataset, y = RMSE)) +
+#  geom_bar(stat = "identity", fill = "orange", width = 0.6) +
+#  geom_text(aes(label = round(RMSE, 3)), vjust = -0.5, size = 5) +
+#  labs(
+#    title = "Root Mean Squared Error (RMSE)",
+#    y = "RMSE Value",
+#    x = NULL
+#  ) +
+#  theme_minimal(base_size = 14) +
+#  theme(
+#    plot.title = element_text(hjust = 0.5),
+ #   legend.position = "none"
+#  )
 ```
 
+Class Imbalance Check for Binary Response
+```{r}
+#brfss_2017_cleaned$ECIG_BINARY <- ifelse(brfss_2017_cleaned$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0)
+```
 
 
 
