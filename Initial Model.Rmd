@@ -234,6 +234,7 @@ df <- brfss_2017_cleaned
 df$ECIG_BINARY <- ifelse(df$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0)
 df$ECIG_COMP <- as.factor(df$ECIG_COMP)
 df$ECIG_BINARY <- as.factor(df$ECIG_BINARY)
+df$STATE <- as.numeric(as.character(df$STATE))
 set.seed(1)
 split_bin <- createDataPartition(df$ECIG_BINARY, times = 1, p = .7, list = FALSE)
 train_bin <- df[split_bin, ]
@@ -305,13 +306,14 @@ rf_model <- randomForest(
 print(rf_model)
 ```
 
+
 1st Random Forest ROC & AUC
 ```{r}
 # Predicted probabilities
 rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
 
 # ROC curve
-rf_roc <- roc(train_bin$ECIG_BINARY, rf_probs)
+rf_roc <- roc(as.numeric(as.character(train_bin$ECIG_BINARY)), rf_probs)
 
 # AUC
 auc(rf_roc)
@@ -320,6 +322,8 @@ auc(rf_roc)
 plot(rf_roc, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
 abline(a = 0, b = 1, lty = 2, col = "red")
 ```
+
+
 Hyperparameter Tuning
 ```{r}
 set.seed(11)
@@ -333,11 +337,12 @@ tuned_model <- tuneRF(
     trace = FALSE
 )
 ```
+
+
 Addressing Class Imbalance and Overfitting
 ```{r}
-# Revalue factor levels
-y <- revalue(y, c("0" = "X1", "1" = "X2"))
-levels(y)
+# Rename the factor levels
+y <- factor(train_bin$ECIG_BINARY, levels = c("0", "1"), labels = c("No", "Yes"))
 
 # Combine x_train and y_train into one data frame
 data_rf <- data.frame(x, y)
@@ -348,6 +353,7 @@ ctrl_bin <- trainControl(method = "cv", #cross validation
                          sampling = "smote",
                          classProbs = TRUE,
                          summaryFunction = twoClassSummary)
+
 randForMod <- train(y ~ .,
                        data = data_rf,
                        method = "rf",
@@ -355,11 +361,15 @@ randForMod <- train(y ~ .,
 
 randForMod
 ```
+
+
 Feature Importance
 ```{r}
 plot(randForMod)
 varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "black")
 ```
+
+
 Predicting Test Data
 ```{r}
 test_rand_pred <- predict(randForMod, test_bin)
@@ -369,27 +379,56 @@ test_bin_prob <- predict(randForMod, test_bin, type = "prob")
 ```
 
 ```{r}
-PR <- pr.curve(scores.class0 = )
-```
-```{r}
-predict_prob <- predict(randForMod, test_bin, type = "prob")
+# Filter test_bin to only rows with complete predictor values
+test_bin_clean <- test_bin %>%
+  filter(if_all(all_of(predictor_vars), ~ !is.na(.) & is.finite(.)))
+
+# Predict probabilities
+predict_prob <- predict(randForMod, newdata = test_bin_clean, type = "prob")
+
+# Convert ECIG_BINARY to numeric labels (0 or 1)
+weights <- as.numeric(as.character(test_bin_clean$ECIG_BINARY) == "1")
+
+# Combine and drop NAs
+pr_data <- data.frame(prob = predict_prob[, 2], label = weights)
+pr_data <- pr_data[complete.cases(pr_data), ]
+
+# Run PR Curve
+pr <- pr.curve(scores.class0 = pr_data$prob,
+               weights.class0 = pr_data$label,
+               curve = TRUE)
+
+# Plot it
+plot(pr)
+
+pr$auc.integral  # This is your PR-AUC score
 
 ```
+
 
 Multi-Class Logistic Regression Model
 
 # Class Imbalance Check Multi Class
 ```{r}
+set.seed(124)
+brfss_2017_cleaned$ECIG_COMP <- as.factor(brfss_2017_cleaned$ECIG_COMP)
+split <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = 0.7, list = FALSE)
+train <- brfss_2017_cleaned[split, ]
+test <- brfss_2017_cleaned[-split, ]
+
 ggplot(train, aes(x = as.factor(ECIG_COMP), fill = as.factor(ECIG_COMP))) + 
     geom_bar() + 
     scale_x_discrete(labels = c('Everyday', 'Some Days', 'Former', 'Never Used')) + 
     labs(title = "Class Proportions for E-Cigarette Smoking Status", x = "E-Cig Smoking Status")
 ```
+
+
 # Predictor Variables
 ```{r}
 predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5',
                     'CHCCOPD', 'CHECKUP', 'EDUCA', 'GENHLTH', 'HLTHPLN', 'INCOME', 'SEX')
 ```
+
 
 # Train-Test Split for Multi Class
 ```{r}
@@ -435,6 +474,8 @@ vif(model)
 
 Stratified K-Fold & SMOTE
 ```{r}
+train_lm <- train_lm[complete.cases(train_lm), ]
+
 set.seed(12)
 ctrl <- trainControl(method = "cv", #cross validation
                      number = 10, # 10 folds
@@ -453,6 +494,8 @@ ordLogMod
 ```{r}
 #confint(model)
 ```
+
+
 Test Data Predictions
 ```{r}
 predict_classes <- predict(model, test)
