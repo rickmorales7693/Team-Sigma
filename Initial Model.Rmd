@@ -8,10 +8,10 @@ output: pdf_document
 # Libraries
 ```{r}
 library(haven)
+library(dplyr)
 library(mice) # For imputation
 library(tidyverse)
 library(caret)
-library(glmnet)
 library(parameters)
 library(see)
 library(lmtest)  # For assumption testing
@@ -22,6 +22,13 @@ library(plyr)
 library(smotefamily)
 library(MASS)
 library(MLmetrics)
+library(ipred)
+library(rpart)
+library(pROC)
+library(randomForest)
+library(mice)
+library(tidyr)
+library(PRROC)
 
 brfss_2017 <- read_xpt("LLCP2017.XPT")
 
@@ -192,6 +199,9 @@ brfss_2017_cleaned <- brfss_2017_cleaned %>%
 brfss_2017_cleaned <- brfss_2017_cleaned %>%
   filter(ASTHMA == 1)
 
+# Ensure unique column names
+colnames(brfss_2017_cleaned) <- make.names(colnames(brfss_2017_cleaned), unique = TRUE)
+
 # Correlation for all variables
 round(cor(brfss_2017_cleaned), digits = 2)
 
@@ -215,44 +225,158 @@ cor_matrix <- cor(brfss_2017_cleaned[c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', '
 # Visualizing the correlation matrix
 image(cor_matrix, main = "Correlation Matrix", col = colorRampPalette(c("blue", "white", "red"))(20))
 ```
+Binary Random Forest Model
+
+Train-Test Split for Binary
 ```{r}
-brfss_2017_cleaned
-is.factor(brfss_2017_cleaned$ECIG_COMP)
+# Binary Variable Creation
+df <- brfss_2017_cleaned
+df$ECIG_BINARY <- ifelse(df$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0)
+df$ECIG_COMP <- as.factor(df$ECIG_COMP)
+df$ECIG_BINARY <- as.factor(df$ECIG_BINARY)
+set.seed(1)
+split_bin <- createDataPartition(df$ECIG_BINARY, times = 1, p = .7, list = FALSE)
+train_bin <- df[split_bin, ]
+test_bin <- df[-split_bin, ]
 ```
 
-
-# Train-Test Split for Multi Class
-```{r}
-set.seed(124)
-#split <- sample(nrow(brfss_2017_cleaned), 0.6 * nrow(brfss_2017_cleaned))
-brfss_2017_cleaned$ECIG_COMP <- as.factor(brfss_2017_cleaned$ECIG_COMP)
-split <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = .7, list = FALSE)
-train <- brfss_2017_cleaned[split, ]
-test <- brfss_2017_cleaned[-split, ]
-```
-
-```{r}
-train
-```
-
-
-
-# Imputation of Missing Values
+# Imputation of Missing Values ECIG_BIN
 
 Survey data assumes missing values are classified as missing at random. Multiple imputation by chained equations. Best for survey data. Method chosen is cart (imputation by classification and regression trees)
 ```{r}
 # Calculate imputed values with training data
 methods(mice)
-imp <- mice(train, method = "cart", m = 1, maxit = 1, seed = 123)
+imp_bin <- mice(train_bin, method = "cart", m = 1, maxit = 1, seed = 10)
+
+train_bin <- complete(imp_bin)
 #imputed_values <- mice(train, method = "rf)
 ```
+Class Imbalance Check
 ```{r}
-complete(imp)
+ggplot(train_bin, aes(x = as.factor(ECIG_BINARY), fill = as.factor(ECIG_BINARY))) + 
+    geom_bar() + 
+    scale_x_discrete(labels = c('Never Used', 'Current or Former')) + 
+    labs(title = "E-Cigarette Smoking Status (Collapsed Binary Variable)", x = "E-Cig Smoking Status")
+```
+
+Predictor and Target Setup
+```{r}
+# Use BMI_COMP instead of BMI
+predictors <- c("AGE80", "BMI", "SMOKER_COMP", "STATE", "ADDEPEV",
+                "CHCCOPD", "CHECKUP", "GENHLTH", "HLTHPLN",
+                "EDUCA", "INCOME", "SEX", "ALCDAY5")
+
+# Convert factor predictors to numeric if needed
+train_bin[predictors] <- lapply(train_bin[predictors], function(col) {
+  if (is.factor(col)) suppressWarnings(as.numeric(as.character(col))) else col
+})
+
+train_bin <- train_bin %>%
+  filter(if_any(all_of(predictors), ~ !is.na(.) & is.finite(.)))
+
+# Create predictor matrix
+x <- data.matrix(train_bin[, predictors])
+
+# Target
+y <- train_bin$ECIG_BINARY
+
+# Final modeling data frame
+data_rf <- data.frame(x, y)
+```
+
+Random Forest Model + ROC/AUC
+```{r}
+# Convert outcome to factor for classification
+train_bin$ECIG_BINARY <- factor(ifelse(train_bin$ECIG_COMP == 1 | train_bin$ECIG_COMP == 2, 1, 0))
+
+# Train Random Forest model
+#set.seed(12345678)
+set.seed(10)
+rf_model <- randomForest(
+  x = train_bin[, predictors],
+  y = train_bin$ECIG_BINARY,
+  ntree = 1000,          # number of trees
+  mtry = 2,              # number of variables per split (can tune)
+  nodesize = 4,
+  importance = TRUE
+)
+
+# Check model summary
+print(rf_model)
+```
+
+1st Random Forest ROC & AUC
+```{r}
+# Predicted probabilities
+rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc <- roc(train_bin$ECIG_BINARY, rf_probs)
+
+# AUC
+auc(rf_roc)
+
+# Plot ROC
+plot(rf_roc, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
+abline(a = 0, b = 1, lty = 2, col = "red")
+```
+Hyperparameter Tuning
+```{r}
+set.seed(11)
+tuned_model <- tuneRF(
+    x = train_bin[, predictors],
+    y = train_bin$ECIG_BINARY,
+    ntreeTry = 1000,
+    mtryStart = 3,
+    stepFactor = 1.5,
+    improve = 0.01,
+    trace = FALSE
+)
+```
+Addressing Class Imbalance and Overfitting
+```{r}
+# Revalue factor levels
+y <- revalue(y, c("0" = "X1", "1" = "X2"))
+levels(y)
+
+# Combine x_train and y_train into one data frame
+data_rf <- data.frame(x, y)
+
+set.seed(12)
+ctrl_bin <- trainControl(method = "cv", #cross validation
+                         number = 5, # 5 folds
+                         sampling = "smote",
+                         classProbs = TRUE,
+                         summaryFunction = twoClassSummary)
+randForMod <- train(y ~ .,
+                       data = data_rf,
+                       method = "rf",
+                       trControl = ctrl_bin)
+
+randForMod
+```
+Feature Importance
+```{r}
+plot(randForMod)
+varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "black")
+```
+Predicting Test Data
+```{r}
+test_rand_pred <- predict(randForMod, test_bin)
+#postResample(pred = rand_pred, obs = test_bin$ECIG_BINARY)
+test_bin_prob <- predict(randForMod, test_bin, type = "prob")
+
+```
+
+```{r}
+PR <- pr.curve(scores.class0 = )
 ```
 ```{r}
-train <- complete(imp)
-train
+predict_prob <- predict(randForMod, test_bin, type = "prob")
+
 ```
+
+Multi-Class Logistic Regression Model
 
 # Class Imbalance Check Multi Class
 ```{r}
@@ -261,32 +385,36 @@ ggplot(train, aes(x = as.factor(ECIG_COMP), fill = as.factor(ECIG_COMP))) +
     scale_x_discrete(labels = c('Everyday', 'Some Days', 'Former', 'Never Used')) + 
     labs(title = "Class Proportions for E-Cigarette Smoking Status", x = "E-Cig Smoking Status")
 ```
-
-
 # Predictor Variables
 ```{r}
 predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5',
                     'CHCCOPD', 'CHECKUP', 'EDUCA', 'GENHLTH', 'HLTHPLN', 'INCOME', 'SEX')
 ```
 
-
-# Model Fitting (Linear Model)
+# Train-Test Split for Multi Class
 ```{r}
-#x_train <- data.matrix(train[, predictor_vars])
-#y_train <- train$ECIG_COMP
-
-# Combine x_train and y_train into one data frame
-#train_lm <- data.frame(y_train, x_train)
-
-# Fit the model properly using all predictors
-#model <- lm(y_train ~ ., data = train_lm)
-#summary(model)
+set.seed(124)
+#split <- sample(nrow(brfss_2017_cleaned), 0.6 * nrow(brfss_2017_cleaned))
+# Multiclass factorization
+brfss_2017_cleaned$ECIG_COMP <- as.factor(brfss_2017_cleaned$ECIG_COMP)
+split <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = .7, list = FALSE)
+train <- brfss_2017_cleaned[split, ]
+test <- brfss_2017_cleaned[-split, ]
 ```
 
 # Model Fitting (Ordinal Logistic Regression)
 ```{r}
 x_train <- data.matrix(train[, predictor_vars])
 y_train <- train$ECIG_COMP
+
+# Create predictor matrix
+x <- data.matrix(train_bin[, predictors])
+
+# Target
+y <- train_bin$ECIG_BINARY
+
+# Final modeling data frame
+data <- data.frame(x, y)
 
 # Revalue factor levels
 y_train <- revalue(y_train, c("1" = "X1", "2" = "X2", "3" = "X3", "4" = "X4"))
@@ -304,15 +432,12 @@ summary(model)
 model_parameters(model)
 vif(model)
 ```
-```{r}
-
-```
-
 
 Stratified K-Fold & SMOTE
 ```{r}
+set.seed(12)
 ctrl <- trainControl(method = "cv", #cross validation
-                     number = 5, # 5 folds
+                     number = 10, # 10 folds
                      sampling = "smote",
                      classProbs = TRUE,
                      summaryFunction = multiClassSummary)
@@ -322,96 +447,24 @@ ordLogMod <- train(y_train ~ .,
                        trControl = ctrl)
 ordLogMod
 ```
-
-
-# Assumption Checks
 ```{r}
-# Residual plots
-#plot(model)
-
-# Test for Autocorrelation
-#dwtest(model)
+#plot(ordLogMod$resample.)
 ```
-
-
-# Cross-Validation (5-Fold using caret + glmnet)
 ```{r}
-# Remove rows with missing values in either predictors or target
-#complete_rows <- complete.cases(x_train, y_train)
-#x_train_clean <- x_train[complete_rows, ]
-#y_train_clean <- y_train[complete_rows]
-
-# Then run cross-validation
-#cv_model <- train(x = x_train_clean, y = y_train_clean,
-                  #method = "glmnet",
-                  #trControl = trainControl(method = "cv", number = 5))
-
-#print(cv_model)
+#confint(model)
 ```
-
-
-# Overfitting Check
+Test Data Predictions
 ```{r}
-# Rebuild x_test
-#x_test <- test[, predictor_vars]
-#x_test <- data.frame(x_test)
-
-# Predict using the linear model
-#predictions <- predict(model, newdata = x_test)
-
-# Remove any rows with NA values in either predictions or actual values
-#valid_rows <- complete.cases(predictions, test$ECIG_COMP)
-#y_test_clean <- test$ECIG_COMP[valid_rows]
-#predictions_clean <- predictions[valid_rows]
-
-# Calculate RMSE
-#rmse_train <- sqrt(mean((y_train - predict(model))^2))
-#rmse_test <- sqrt(mean((y_test_clean - predictions_clean)^2))
-
-#print(paste("Train RMSE:", round(rmse_train, 3)))
-#print(paste("Test RMSE:", round(rmse_test, 3)))
+predict_classes <- predict(model, test)
+head(predict_classes)
 ```
-
-
-# RMSE Comparison
 ```{r}
-# Define RMSE values
-#rmse_train <- 1.253
-#rmse_test <- 0.513
-
-# Create data frame
-#rmse_data <- data.frame(
-#  Dataset = c("Train RMSE", "Test RMSE"),
-#  RMSE = c(rmse_train, rmse_test)
-#)
-
-# Create the bar plot
-#ggplot(rmse_data, aes(x = Dataset, y = RMSE)) +
-#  geom_bar(stat = "identity", fill = "orange", width = 0.6) +
-#  geom_text(aes(label = round(RMSE, 3)), vjust = -0.5, size = 5) +
-#  labs(
-#    title = "Root Mean Squared Error (RMSE)",
-#    y = "RMSE Value",
-#    x = NULL
-#  ) +
-#  theme_minimal(base_size = 14) +
-#  theme(
-#    plot.title = element_text(hjust = 0.5),
- #   legend.position = "none"
-#  )
+predict_prob <- predict(model, test, type = "p")
+head(predict_prob)
 ```
-
-Class Imbalance Check for Binary Response
 ```{r}
-#brfss_2017_cleaned$ECIG_BINARY <- ifelse(brfss_2017_cleaned$ECIG_COMP == 1 | df$ECIG_COMP == 2, 1, 0)
+table(test$ECIG_COMP, predict_classes)
 ```
-
-
-
-
-
-
-
-
-
-
+```{r}
+#mean(as.character(test$ECIG_COMP) != as.character(predict_classes$))
+```
