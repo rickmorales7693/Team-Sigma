@@ -249,6 +249,29 @@ train_bin <- df[split_bin, ]
 test_bin <- df[-split_bin, ]
 ```
 
+Train-Test Split (asthmatics with history of smoking)
+```{r}
+# Binary Variable Creation
+df_2 <- brfss_2017_cleaned
+
+# Filter for Adult Asthmatics who Smoke
+  df_2 <- brfss_2017_cleaned %>%
+      filter(
+          ECIG_COMP != 4,
+          ASTHMA == 1,
+          SMOKER_COMP != 4
+          )
+
+df_2$ECIG_BINARY <- ifelse(df_2$ECIG_COMP == 1 | df_2$ECIG_COMP == 2, 1, 0)
+df_2$ECIG_COMP <- as.factor(df_2$ECIG_COMP)
+df_2$ECIG_BINARY <- as.factor(df_2$ECIG_BINARY)
+df_2$STATE <- as.numeric(as.character(df_2$STATE))
+set.seed(3)
+split_bin_2 <- createDataPartition(df_2$ECIG_BINARY, times = 1, p = .7, list = FALSE)
+train_bin_2 <- df_2[split_bin_2, ]
+test_bin_2 <- df_2[-split_bin_2, ]
+```
+
 Train_test Split for Binary (no filter)
 ```{r}
 # Binary Variable Creation
@@ -276,6 +299,16 @@ imp_bin <- mice(train_bin, method = "cart", m = 1, maxit = 1, seed = 11)
 train_bin <- complete(imp_bin)
 #imputed_values <- mice(train, method = "rf)
 ```
+Asthmatics w/ history of smoking
+```{r}
+# Calculate imputed values with training data
+methods(mice)
+#seed = 10 for Asthmatics, seed = 11 without filter
+imp_bin_2 <- mice(train_bin_2, method = "cart", m = 1, maxit = 1, seed = 13)
+
+train_bin_2 <- complete(imp_bin_2)
+```
+No filter
 ```{r}
 # Calculate imputed values with training data
 methods(mice)
@@ -287,7 +320,7 @@ train_bin_nf <- complete(imp_bin_nf)
 
 Class Imbalance Check for Asthmatics
 ```{r}
-ggplot(train_bin, aes(x = as.factor(ECIG_BINARY), 
+p1 <- ggplot(train_bin, aes(x = as.factor(ECIG_BINARY), 
                       y = prop.table(stat(count)),
                       fill = as.factor(ECIG_BINARY),
                       label = scales::percent(prop.table(stat(count))))) + 
@@ -299,11 +332,26 @@ ggplot(train_bin, aes(x = as.factor(ECIG_BINARY),
     scale_y_continuous(labels = scales::percent) +
     scale_x_discrete(labels = c('Never Used', 'Used')) + 
     labs(title = "E-Cigarette Smoking Status Among Those with History of Asthma in 2017", x = "E-Cig Smoking Status", y = "Surveyed Population %", fill = "E-Cig Smoking Status")
-
 ```
+Asthmatics with Smoking History
+```{r}
+p2 <- ggplot(train_bin_2, aes(x = as.factor(ECIG_BINARY), 
+                      y = prop.table(stat(count)),
+                      fill = as.factor(ECIG_BINARY),
+                      label = scales::percent(prop.table(stat(count))))) + 
+    geom_bar(position = "dodge") +
+    geom_text(stat = 'count',
+              position = position_dodge(.10),
+              vjust = -0.5,
+              size = 4) +
+    scale_y_continuous(labels = scales::percent) +
+    scale_x_discrete(labels = c('Never Used', 'Used')) + 
+    labs(title = "E-Cigarette Usage in 2017 in Adults with History of Asthma and Smoking", x = "E-Cig Smoking Status", y = "Surveyed Population %", fill = "E-Cig Smoking Status")
+```
+
 Class Imbalance Check not filtered
 ```{r}
-ggplot(train_bin_nf, aes(x = as.factor(ECIG_BINARY), 
+p3 <- ggplot(train_bin_nf, aes(x = as.factor(ECIG_BINARY), 
                       y = prop.table(stat(count)),
                       fill = as.factor(ECIG_BINARY),
                       label = scales::percent(prop.table(stat(count))))) + 
@@ -342,6 +390,26 @@ y <- train_bin$ECIG_BINARY
 data_rf <- data.frame(x, y)
 ```
 
+Predictor and Target setup asthmatics and smokers
+```{r}
+# Convert factor predictors to numeric if needed
+train_bin_2[predictors] <- lapply(train_bin_2[predictors], function(col) {
+  if (is.factor(col)) suppressWarnings(as.numeric(as.character(col))) else col
+})
+
+train_bin_2 <- train_bin_2 %>%
+  filter(if_any(all_of(predictors), ~ !is.na(.) & is.finite(.)))
+
+# Create predictor matrix
+x_2 <- data.matrix(train_bin_2[, predictors])
+
+# Target
+y_2 <- train_bin_2$ECIG_BINARY
+
+# Final modeling data frame
+data_rf_2 <- data.frame(x_2, y_2)
+```
+
 Predictor and Target Setup not filtered
 ```{r}
 # Convert factor predictors to numeric if needed
@@ -363,7 +431,7 @@ data_rf_nf <- data.frame(x_nf, y_nf)
 ```
 
 
-Random Forest Model + ROC/AUC Asthmatics
+Random Forest Model Asthmatics
 ```{r}
 # Convert outcome to factor for classification
 train_bin$ECIG_BINARY <- factor(ifelse(train_bin$ECIG_COMP == 1 | train_bin$ECIG_COMP == 2, 1, 0))
@@ -384,7 +452,28 @@ rf_model <- randomForest(
 print(rf_model)
 ```
 
+Random Forest asthmatics and smokers
+```{r}
+# Convert outcome to factor for classification
+train_bin_2$ECIG_BINARY <- factor(ifelse(train_bin_2$ECIG_COMP == 1 | train_bin_2$ECIG_COMP == 2, 1, 0))
 
+# Train Random Forest model
+#set.seed(12345678)
+set.seed(11)
+rf_model_2 <- randomForest(
+  x = train_bin_2[, predictors],
+  y = train_bin_2$ECIG_BINARY,
+  ntree = 1000,          # number of trees
+  mtry = 2,              # number of variables per split (can tune)
+  nodesize = 4,
+  importance = TRUE
+)
+
+# Check model summary
+print(rf_model_2)
+```
+
+Random Forest not filtered
 ```{r}
 # Convert outcome to factor for classification
 train_bin_nf$ECIG_BINARY <- factor(ifelse(train_bin_nf$ECIG_COMP == 1 | train_bin_nf$ECIG_COMP == 2, 1, 0))
@@ -405,9 +494,9 @@ rf_model_nf <- randomForest(
 print(rf_model_nf)
 ```
 
-
-1st Random Forest ROC & AUC
+ROC & AUC Asthmatics
 ```{r}
+library(pROC)
 # Predicted probabilities
 rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
 
@@ -418,10 +507,41 @@ rf_roc <- roc(as.numeric(as.character(train_bin$ECIG_BINARY)), rf_probs)
 auc(rf_roc)
 
 # Plot ROC
-plot(rf_roc, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
+a <- plot(rf_roc, col = "blue", lwd = 2, main = "Random Forest ROC Curve", print.auc = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+```
+ROC AUC asthmatics & smokers
+```{r}
+library(pROC)
+# Predicted probabilities
+rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc <- roc(as.numeric(as.character(train_bin$ECIG_BINARY)), rf_probs)
+
+# AUC
+auc(rf_roc)
+
+# Plot ROC
+a <- plot(rf_roc, col = "blue", lwd = 2, main = "Random Forest ROC Curve", print.auc = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+
+# Predicted probabilities
+rf_probs_2 <- predict(rf_model_2, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc_2 <- roc(as.numeric(as.character(train_bin_2$ECIG_BINARY)), rf_probs_2, col = "green")
+
+# AUC
+auc(rf_roc_2)
+
+# Plot ROC
+b <- plot(rf_roc_2, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve", add = TRUE, print.auc = TRUE)
 abline(a = 0, b = 1, lty = 2, col = "red")
 ```
 
+
+ROC AUC not filtered
 ```{r}
 # Predicted probabilities
 rf_probs_nf <- predict(rf_model_nf, type = "prob")[, 2]  # probability of class "1"
@@ -433,9 +553,21 @@ rf_roc_nf <- roc(as.numeric(as.character(train_bin_nf$ECIG_BINARY)), rf_probs_nf
 auc(rf_roc_nf)
 
 # Plot ROC
-plot(rf_roc_nf, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
+c <- plot(rf_roc_nf, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve")
 abline(a = 0, b = 1, lty = 2, col = "red")
 ```
+Random forest combine
+```{r}
+library(ggpubr)
+combined <- ggarrange(a,
+                      b,
+                      c,
+                      nrow = 2,
+                      ncol = 1)
+
+```
+
+
 Hyperparameter Tuning (Asthmatics)
 ```{r}
 set.seed(12)
@@ -487,6 +619,29 @@ randForMod <- train(y ~ .,
 
 randForMod
 ```
+Addressing Class Imbalance and Overfitting (asthma and smoker)
+```{r}
+# Rename the factor levels
+y_2 <- factor(train_bin_2$ECIG_BINARY, levels = c("0", "1"), labels = c("No", "Yes"))
+
+# Combine x_train and y_train into one data frame
+data_rf_2 <- data.frame(x_2, y_2)
+
+#11
+set.seed(11)
+ctrl_bin_2 <- trainControl(method = "cv", #cross validation
+                         number = 5, # 5 folds
+                         sampling = "smote",
+                         classProbs = TRUE,
+                         summaryFunction = twoClassSummary)
+
+randForMod_2 <- train(y_2 ~ .,
+                    data = data_rf_2,
+                    method = "rf",
+                    trControl = ctrl_bin_2)
+
+randForMod_2
+```
 Addressing Class Imbalance and Overfitting (no filter)
 ```{r}
 # Rename the factor levels
@@ -515,6 +670,12 @@ Feature Importance (Asthmatics)
 plot(randForMod)
 varImpPlot(rf_model, main = "Variable Importance (Random Forest)", pch = 19, col = "black")
 ```
+Feature Importance (asthma and smoker)
+```{r}
+plot(randForMod_2)
+varImpPlot(rf_model_2, main = "Variable Importance (Random Forest)", pch = 19, col = "black")
+```
+
 Feature Importance (No filter)
 ```{r}
 plot(randForMod_nf)
@@ -531,6 +692,14 @@ test_rand_pred <- predict(randForMod, test_bin)
 #postResample(pred = rand_pred, obs = test_bin$ECIG_BINARY)
 test_bin_prob <- predict(randForMod, test_bin, type = "prob")
 ```
+
+Predicting Data (asathma and smoker)
+```{r}
+test_rand_pred_2 <- predict(randForMod_2, test_bin_2)
+#postResample(pred = rand_pred, obs = test_bin$ECIG_BINARY)
+test_bin_prob_2 <- predict(randForMod_2, test_bin_2, type = "prob")
+```
+
 
 Predicting Test Data (no filter)
 ```{r}
@@ -566,6 +735,34 @@ plot(pr)
 pr$auc.integral  # This is your PR-AUC score
 
 ```
+Asthmatics and smokers
+```{r}
+# Filter test_bin to only rows with complete predictor values
+test_bin_clean_2 <- test_bin_2 %>%
+  filter(if_all(all_of(predictor_vars), ~ !is.na(.) & is.finite(.)))
+
+# Predict probabilities
+predict_prob_2 <- predict(randForMod_2, newdata = test_bin_clean_2, type = "prob")
+
+# Convert ECIG_BINARY to numeric labels (0 or 1)
+weights_2 <- as.numeric(as.character(test_bin_clean_2$ECIG_BINARY) == "1")
+
+# Combine and drop NAs
+pr_data_2 <- data.frame(prob = predict_prob_2[, 2], label = weights_2)
+pr_data_2 <- pr_data_2[complete.cases(pr_data_2), ]
+
+# Run PR Curve
+pr_2 <- pr.curve(scores.class0 = pr_data_2$prob,
+               weights.class0 = pr_data_2$label,
+               curve = TRUE)
+
+# Plot it
+plot(pr_2)
+
+pr_2$auc.integral  # This is your PR-AUC score
+```
+
+
 No filter
 ```{r}
 # Filter test_bin to only rows with complete predictor values
@@ -602,10 +799,29 @@ split_lr <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = 0.7
 train_lr <- brfss_2017_cleaned[split_lr, ]
 test_lr <- brfss_2017_cleaned[-split_lr, ]
 
-ggplot(train_lr, aes(x = as.factor(ECIG_COMP), fill = as.factor(ECIG_COMP))) + 
-    geom_bar() + 
-    scale_x_discrete(labels = c('Everyday', 'Some Days', 'Former', 'Never Used')) + 
-    labs(title = "Class Proportions for E-Cigarette Smoking Status", x = "E-Cig Smoking Status")
+# Calculate imputed values with training data
+methods(mice)
+#seed = 10 for Asthmatics, seed = 11 without filter
+imp <- mice(train_lr, method = "cart", m = 1, maxit = 1, seed = 12)
+
+train_lr <- complete(imp)
+```
+
+
+```{r}
+
+p4 <- ggplot(train_lr, aes(x = as.factor(ECIG_COMP), 
+                      y = prop.table(stat(count)),
+                      fill = as.factor(ECIG_COMP),
+                      label = scales::percent(prop.table(stat(count))))) + 
+    geom_bar(position = "dodge") +
+    geom_text(stat = 'count',
+              position = position_dodge(.10),
+              vjust = -0.5,
+              size = 4) +
+    scale_y_continuous(labels = scales::percent) +
+    scale_x_discrete(labels = c('Every Day', 'Some Days', 'Former', 'Never Used')) + 
+    labs(title = "E-Cigarette Smoking Status Among All Adults Surveyed Xin 2017", x = "E-Cig Smoking Status", y = "Surveyed Population %", fill = "E-Cig Smoking Status")
 ```
 
 
@@ -629,14 +845,14 @@ test <- brfss_2017_cleaned[-split, ]
 
 # Model Fitting (Ordinal Logistic Regression)
 ```{r}
-x_train <- data.matrix(train[, predictor_vars])
-y_train <- train$ECIG_COMP
+x_train <- data.matrix(train_lr[, predictor_vars])
+y_train <- train_lr$ECIG_COMP
 
 # Create predictor matrix
-x <- data.matrix(train_bin[, predictors])
+x <- data.matrix(train_lr[, predictors])
 
 # Target
-y <- train_bin$ECIG_BINARY
+y <- train_lr$ECIG_COMP
 
 # Final modeling data frame
 data <- data.frame(x, y)
@@ -662,9 +878,9 @@ Stratified K-Fold & SMOTE
 ```{r}
 train_lm <- train_lm[complete.cases(train_lm), ]
 
-set.seed(12)
+set.seed(13)
 ctrl <- trainControl(method = "cv", #cross validation
-                     number = 10, # 10 folds
+                     number = 5, # 5 folds
                      sampling = "smote",
                      classProbs = TRUE,
                      summaryFunction = multiClassSummary)
@@ -683,6 +899,130 @@ ordLogMod
 
 
 Test Data Predictions
+```{r}
+# Filter test_bin to only rows with complete predictor values
+test_lr <- test_bin %>%
+  filter(if_all(all_of(predictor_vars), ~ !is.na(.) & is.finite(.)))
+
+# Predict probabilities
+predict_lr <- predict(randForMod, newdata = test_lr)
+predict_prob_lr <- predict(randForMod, newdata = test_lr, type = "prob")
+
+# Convert ECIG_BINARY to numeric labels (0 or 1)
+weights_lr <- as.numeric(as.character(test_lr$ECIG_COMP) == "1")
+
+# Combine and drop NAs
+pr_data_lr <- data.frame(prob = predict_prob_lr[, 2], label = weights_lr)
+pr_data_lr <- pr_data_lr[complete.cases(pr_data_lr), ]
+
+# Run PR Curve
+pr_lr <- pr.curve(scores.class0 = pr_data_lr$prob,
+               weights.class0 = pr_data_lr$label,
+               curve = TRUE)
+
+# Plot it
+plot(pr_lr)
+
+pr$auc.integral  # This is your PR-AUC score
+
+library(yardstick)
+#df_lr <- dplyr::bind_cols(truth = y_train, prediction = predict_lr)
+#roc_auc(df_lr, y_train, .pred_classname:.pred_classname, estimator = "hand_till")
+```
+```{r}
+# ROC curve
+rf_probs_lr <- predict(model, type = "prob")[, 2]  # probability of class "1"
+rf_roc_lr <- roc(as.numeric(as.character(train_lr$ECIG_COMP)), rf_probs_lr)
+
+# AUC
+auc(rf_roc_lr)
+
+# Plot ROC
+d <- plot(rf_roc_lr, col = "forestgreen", lwd = 2, main = "Ordinal Logistic Regression ROC Curve")
+abline(a = 0, b = 1, lty = 2, col = "red")
+```
+```{r}
+library(gridExtra)
+library(gtable)
+library(grid)
+g1 <- ggplotGrob(p1)
+g2 <- ggplotGrob(p2)
+g3 <- ggplotGrob(p3)
+g <- rbind(g2, g2, g3, size = "first")
+grid.draw(g)
+plot(g)
+```
+```{r}
+library(Rmisc)
+multiplot(p1, p2, cols = 2)
+```
+```{r}
+rocobj <- roc()
+```
+
+```{r}
+library(pROC)
+#asthmatics
+
+# Predicted probabilities
+rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc <- roc(as.numeric(as.character(train_bin$ECIG_BINARY)), rf_probs)
+
+# AUC
+auc(rf_roc)
+
+# Plot ROC
+a <- plot(rf_roc, col = "blue", lwd = 2, main = "Random Forest ROC Curve", print.auc = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+
+#asthmatics & smokers
+
+# Predicted probabilities
+rf_probs_2 <- predict(rf_model_2, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc_2 <- roc(as.numeric(as.character(train_bin_2$ECIG_BINARY)), rf_probs_2, col = "green")
+
+# AUC
+auc(rf_roc_2)
+
+# Plot ROC
+b <- plot(rf_roc_2, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve", add = TRUE, print.auc = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+
+# multi class
+# ROC curve
+rf_probs_lr <- predict(model, type = "prob")[, 2]  # probability of class "1"
+rf_roc_lr <- roc(as.numeric(as.character(train_lr$ECIG_COMP)), rf_probs_lr)
+
+# AUC
+auc(rf_roc_lr)
+
+# Plot ROC
+d <- plot(rf_roc_lr, col = "orange", lwd = 2, main = "Ordinal Logistic Regression ROC Curve", add = TRUE, print.auc = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+
+#no filter
+
+# Predicted probabilities
+rf_probs_nf <- predict(rf_model_nf, type = "prob")[, 2]  # probability of class "1"
+
+# ROC curve
+rf_roc_nf <- roc(as.numeric(as.character(train_bin_nf$ECIG_BINARY)), rf_probs_nf)
+
+# AUC
+auc(rf_roc_nf)
+
+# Plot ROC
+c <- plot(rf_roc_nf, col = "brown", lwd = 2, main = "Random Forest ROC Curve", add = TRUE, print.auc = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+```
+
+
+
+
 ```{r}
 predict_classes <- predict(model, test)
 head(predict_classes)
