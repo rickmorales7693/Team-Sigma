@@ -1,4 +1,4 @@
-# Team-Sigma
+# Team Sigma
 
 ### Team Members:
 - Stephanie Halsing
