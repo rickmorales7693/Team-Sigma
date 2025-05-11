@@ -27,7 +27,8 @@ The Centers for Disease Control and Prevention (CDC) has a vested interest in th
 1. We predict that vaping will be relatively higher among adult asthmatics who smoke or have a history of smoking as compared to those who do not smoke tobacco cigarettes.
 
 ### Project Goals:
-- Clean and preprocess the BRFSS 2017 dataset
 - Conduct exploratory data analysis (EDA)
+- Perform data cleaning and pre-processing steps
 - Perform feature engineering using PCA and K-Means clustering
-- Prepare the data for future supervised modeling tasks
+- Prepare the data for supervised and unsupervised modeling techniques
+- Discover the best model for addressing the research question
