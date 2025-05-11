@@ -1,6 +1,6 @@
 ---
-title: "Initial Model"
-author: "Rick Morales"
+title: "Team Sigma Capstone Spring 2025"
+author: "Rick Morales, Stephanie Halsing, and Erika Torkildsen"
 date: "`r Sys.Date()`"
 output: pdf_document
 ---
