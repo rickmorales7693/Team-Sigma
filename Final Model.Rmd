@@ -237,7 +237,7 @@ Visualize Relationships
 
 Visualizations are made to explore patterns in data relevant to our research question prior to pre-processing. ggplot() is used for visualizations with inputs to display count percentages, labels, titles, and legends. Erika Torkildsen and Rick Morales. Code below is self tested and tested on other machines successfully.
 ```{r}
-# Visualizing E-cigarette smoking status and conventional smoking status
+# Visualizing E-cigarette smoking status (binary)
 EDA_1 <- ggplot(brfss_2017_cleaned, aes(x = as.factor(ECIG_COMP), 
                       y = prop.table(stat(count)),
                       fill = as.factor(ECIG_COMP),
@@ -312,7 +312,7 @@ EDA_5 <- ggplot(brfss_2017_cleaned, aes(x = as.factor(ECIG_COMP),
 EDA_5
 ```
 ```{r}
-# Visualizing Conventional Smoking Status
+# Visualizing Conventional Smoking Status and Asthma Status
 EDA_6 <- ggplot(brfss_2017_cleaned, aes(x = as.factor(SMOKER_COMP), 
                       y = prop.table(stat(count)),
                       fill = as.factor(ASTHMA))) + 
@@ -522,9 +522,8 @@ Optimal Clusters Computation for Model Filtered on Asthmatics with History of Va
 ```{r}
 fviz_nbclust(train_bin_2, kmeans, method = "wss")
 ```
-Optimal Clusters Computation for Unfiltered Model
 ```{r}
-fviz_nbclust(train_bin_nf, kmeans, method = "wss")
+# Machines ran out of memory and were unable to compute optimal cluster for the third model.Several attempts to address this failed.
 ```
 
 K-means clustering is computed for each model to partition the data into clusters. kmeans() is used with transformed data as an input. Centers represents the number of specified clusters. nstart represents how many random sets should be chosen. fviz_cluster() visualizes results. Erika Torkildsen and Rick Morales. Code below is self tested and tested on other machines successfully.
@@ -1024,7 +1023,9 @@ randForMod_nf <- train(y_nf ~ .,
 
 randForMod_nf
 ```
-Feature Importance 
+Feature Importance
+
+Understanding feature importance is crucial for enhancing model performance. Quality and quantity of feature importance has an impact on model accuracy. A variable importance plot is made for the three test cases, visualizing mean decrease accuracy and mean decrease in Gini. pch represents plotting character. Erika Torkildsen. Code below is self tested and tested on other machines successfully.
 
 Feature Importance for Asthmatics with History of Vaping
 ```{r}
@@ -1042,6 +1043,8 @@ plot(randForMod_nf)
 varImpPlot(rf_model_nf, main = "Variable Importance (Random Forest)", pch = 19, col = "black")
 ```
 Predicting Test Data
+
+Following computations made on the training data, the next step in the study involves making predictions on the test data using features. The predict() function takes in the random forest model that has undergone 5 fold cross-validation and the SMOTE technique as well as the test data as inputs. Probabilities are generated. Rick Morales. Code below is self tested and tested on other machines successfully.
 
 Predictions for Asthmatics with History of Vaping
 ```{r}
@@ -1065,6 +1068,8 @@ test_bin_prob_nf <- predict(randForMod_nf, test_bin_nf, type = "prob")
 ```
 
 Precision Recall
+
+Precision recall visualizes the tradeoff between precision (accuracy of positive predictors) and recall (ability to find positive cases) and is used best on imbalanced datasets. PR-AUC focuses on the positive class. Scores and weights are called by pr.curve. Rick Morales and Stephanie Halsing. Code below is self tested and tested on other machines successfully.
 
 Precision Recall for Asthmatics with History of Vaping
 ```{r}
@@ -1146,25 +1151,39 @@ pr_nf$auc.integral  # This is your PR-AUC score
 ```
 Multi-Class Logistic Regression Model
 
+A second target variable is explored to compare effects on performance against the binary. Methods used for binary target are employed for multi-class. The multi-class target is filtered on adults with history of asthma. Erika Torkildsen. Code below is self tested and tested on other machines successfully.
+
 # Class Imbalance Check Multi Class
 ```{r}
-set.seed(124)
-brfss_2017_cleaned$ECIG_COMP <- as.factor(brfss_2017_cleaned$ECIG_COMP)
-split_lr <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = 0.7, list = FALSE)
-train_lr <- brfss_2017_cleaned[split_lr, ]
-test_lr <- brfss_2017_cleaned[-split_lr, ]
+# Binary Variable Creation
+df_lr <- brfss_2017_cleaned
 
-# Calculate imputed values with training data
-methods(mice)
-#seed = 10 for Asthmatics, seed = 11 without filter
-imp <- mice(train_lr, method = "cart", m = 1, maxit = 1, seed = 12)
+# Filter on adult asthmatics
+df_lr <- brfss_2017_cleaned %>%
+    filter(ASTHMA == 1)
 
-train_lr <- complete(imp)
+df_lr$ECIG_COMP <- as.factor(df_lr$ECIG_COMP)
+
+#train-test split with 1 partition, 70% of data in training, and results not stored in list
+set.seed(21)
+split_lr <- createDataPartition(df_lr$ECIG_COMP, times = 1, p = 0.7, list = FALSE)
+train_lr <- df_lr[split_lr, ]
+test_lr <- df_lr[-split_lr, ]
 ```
 
-
+Imputation of Missing Values for Multi-Class Target
 ```{r}
+# Calculate imputed values with training data
+methods(mice)
 
+# Calculate imputed values with mice() using cart with 1 multiple imputation and 1 iteration. Reproducible.
+imp_multi <- mice(train_lr, method = "cart", m = 1, maxit = 1, seed = 22)
+
+# Complete training data with imputed values
+train_lr <- complete(imp_multi)
+```
+Class Imbalance Check for Multi-Class Filtered on Asthmatics
+```{r}
 p4 <- ggplot(train_lr, aes(x = as.factor(ECIG_COMP), 
                       y = prop.table(stat(count)),
                       fill = as.factor(ECIG_COMP),
@@ -1176,27 +1195,13 @@ p4 <- ggplot(train_lr, aes(x = as.factor(ECIG_COMP),
               size = 4) +
     scale_y_continuous(labels = scales::percent) +
     scale_x_discrete(labels = c('Every Day', 'Some Days', 'Former', 'Never Used')) + 
-    labs(title = "E-Cigarette Smoking Status Among All Adults Surveyed Xin 2017", x = "E-Cig Smoking Status", y = "Surveyed Population %", fill = "E-Cig Smoking Status")
+    labs(title = "E-Cigarette Smoking Status Among Asthmatics 2017", x = "E-Cig Smoking Status", y = "Surveyed Population %", fill = "E-Cig Smoking Status")
+
+p4
 ```
+Ordinal Logistic Regression
 
-
-# Predictor Variables
-```{r}
-predictor_vars <- c('AGE80', 'BMI', 'SMOKER_COMP', 'STATE', 'ADDEPEV', 'ALCDAY5',
-                    'CHCCOPD', 'CHECKUP', 'EDUCA', 'GENHLTH', 'HLTHPLN', 'INCOME', 'SEX')
-```
-
-
-# Train-Test Split for Multi Class
-```{r}
-set.seed(124)
-#split <- sample(nrow(brfss_2017_cleaned), 0.6 * nrow(brfss_2017_cleaned))
-# Multiclass factorization
-brfss_2017_cleaned$ECIG_COMP <- as.factor(brfss_2017_cleaned$ECIG_COMP)
-split <- createDataPartition(brfss_2017_cleaned$ECIG_COMP, times = 1, p = .7, list = FALSE)
-train <- brfss_2017_cleaned[split, ]
-test <- brfss_2017_cleaned[-split, ]
-```
+An ordinal logistic regression model is fit for the multi-class target. It is used for ordinal categorical outcomes and ideal for multiple classes. A predictror matrix is created prior to building the model. Erika Torkildsen and Stephanie Halsing. Code below is self tested and tested on other machines successfully.
 
 # Model Fitting (Ordinal Logistic Regression)
 ```{r}
@@ -1204,7 +1209,7 @@ x_train <- data.matrix(train_lr[, predictor_vars])
 y_train <- train_lr$ECIG_COMP
 
 # Create predictor matrix
-x <- data.matrix(train_lr[, predictors])
+x <- data.matrix(train_lr[, predictor_vars])
 
 # Target
 y <- train_lr$ECIG_COMP
@@ -1219,49 +1224,44 @@ levels(y_train)
 # Combine x_train and y_train into one data frame
 train_lm <- data.frame(y_train, x_train)
 
-set.seed(123)
-model <- polr(y_train ~ ., data = train_lm)
-model
+set.seed(23)
+model_lr <- polr(y_train ~ ., data = train_lm)
+model_lr
 ```
+View model results and variance inflation factors
 ```{r}
-summary(model)
-model_parameters(model)
-vif(model)
+summary(model_lr)
+model_parameters(model_lr)
+vif(model_lr)
 ```
-
-Stratified K-Fold & SMOTE
+Addressing Class Imbalance for Asthmatics (Multi-class)
 ```{r}
+# Ensure complete cases
 train_lm <- train_lm[complete.cases(train_lm), ]
 
-set.seed(13)
+# control function optimization
+set.seed(24)
 ctrl <- trainControl(method = "cv", #cross validation
                      number = 5, # 5 folds
-                     sampling = "smote",
-                     classProbs = TRUE,
-                     summaryFunction = multiClassSummary)
+                     sampling = "smote", # synthetic minority oversampling technique
+                     classProbs = TRUE, # class probabilities computed in each resample
+                     summaryFunction = multiClassSummary) # multi-class
+# apply to training data
 ordLogMod <- train(y_train ~ .,
                        data = train_lm,
                        method = "polr",
                        trControl = ctrl)
 ordLogMod
 ```
-```{r}
-#plot(ordLogMod$resample.)
-```
-```{r}
-#confint(model)
-```
-
-
-Test Data Predictions
+Predictions for Asthmatics and ROC curve
 ```{r}
 # Filter test_bin to only rows with complete predictor values
-test_lr <- test_bin %>%
+test_lr <- test_lr %>%
   filter(if_all(all_of(predictor_vars), ~ !is.na(.) & is.finite(.)))
 
 # Predict probabilities
-predict_lr <- predict(randForMod, newdata = test_lr)
-predict_prob_lr <- predict(randForMod, newdata = test_lr, type = "prob")
+predict_lr <- predict(ordLogMod, newdata = test_lr)
+predict_prob_lr <- predict(ordLogMod, newdata = test_lr, type = "prob")
 
 # Convert ECIG_BINARY to numeric labels (0 or 1)
 weights_lr <- as.numeric(as.character(test_lr$ECIG_COMP) == "1")
@@ -1279,62 +1279,43 @@ pr_lr <- pr.curve(scores.class0 = pr_data_lr$prob,
 plot(pr_lr)
 
 pr$auc.integral  # This is your PR-AUC score
-
-library(yardstick)
-#df_lr <- dplyr::bind_cols(truth = y_train, prediction = predict_lr)
-#roc_auc(df_lr, y_train, .pred_classname:.pred_classname, estimator = "hand_till")
 ```
+ROC curve computation for multi-class. Erika Torkildsen. Code below is self tested and tested on other machines successfully.
 ```{r}
 # ROC curve
-rf_probs_lr <- predict(model, type = "prob")[, 2]  # probability of class "1"
+rf_probs_lr <- predict(model_lr, type = "prob")[, 2]  # probability of class "1"
 rf_roc_lr <- roc(as.numeric(as.character(train_lr$ECIG_COMP)), rf_probs_lr)
 
 # AUC
 auc(rf_roc_lr)
 
 # Plot ROC
-d <- plot(rf_roc_lr, col = "forestgreen", lwd = 2, main = "Ordinal Logistic Regression ROC Curve")
+d <- plot(rf_roc_lr, col = "forestgreen", lwd = 2, main = "Ordinal Logistic Regression ROC Curve", print.auc = TRUE)
 abline(a = 0, b = 1, lty = 2, col = "red")
 ```
+Combine all ROC curves. All curves from 4 models in total overlaid on one plot. Erika Torkildsen. Code below is self tested and tested on other machines successfully.
 ```{r}
-rocobj <- roc()
-```
-
-```{r}
-library(pROC)
-#asthmatics
-
-# Predicted probabilities
-rf_probs <- predict(rf_model, type = "prob")[, 2]  # probability of class "1"
-
-# ROC curve
-rf_roc <- roc(as.numeric(as.character(train_bin$ECIG_BINARY)), rf_probs)
-
-# AUC
-auc(rf_roc)
+# Asthmatics and vaping (binary)
 
 # Plot ROC
 a <- plot(rf_roc, col = "blue", lwd = 2, main = "Random Forest ROC Curve")
 abline(a = 0, b = 1, lty = 2, col = "red")
 
-#asthmatics & smokers
-
-# Predicted probabilities
-rf_probs_2 <- predict(rf_model_2, type = "prob")[, 2]  # probability of class "1"
-
-# ROC curve
-rf_roc_2 <- roc(as.numeric(as.character(train_bin_2$ECIG_BINARY)), rf_probs_2)
-
-# AUC
-auc(rf_roc_2)
+# Asthmatics and vaping and smoking (binary)
 
 # Plot ROC
 b <- plot(rf_roc_2, col = "forestgreen", lwd = 2, main = "Random Forest ROC Curve", add = TRUE)
 abline(a = 0, b = 1, lty = 2, col = "red")
 
+# Asthmatics (binary)
+
+# Plot ROC
+c <- plot(rf_roc_nf, col = "red", lwd = 2, main = "Random Forest ROC Curve", print.auc = TRUE, add = TRUE)
+abline(a = 0, b = 1, lty = 2, col = "red")
+
 # multi class
 # ROC curve
-rf_probs_lr <- predict(model, type = "prob")[, 2]  # probability of class "1"
+rf_probs_lr <- predict(model_lr, type = "prob")[, 2]  # probability of class "1"
 rf_roc_lr <- roc(as.numeric(as.character(train_lr$ECIG_COMP)), rf_probs_lr)
 
 # AUC
@@ -1344,34 +1325,5 @@ auc(rf_roc_lr)
 d <- plot(rf_roc_lr, col = "orange", lwd = 2, main = "Ordinal Logistic Regression ROC Curve", add = TRUE)
 abline(a = 0, b = 1, lty = 2, col = "red")
 
-#no filter
-
-# Predicted probabilities
-rf_probs_nf <- predict(rf_model_nf, type = "prob")[, 2]  # probability of class "1"
-
-# ROC curve
-rf_roc_nf <- roc(as.numeric(as.character(train_bin_nf$ECIG_BINARY)), rf_probs_nf)
-
-# AUC
-auc(rf_roc_nf)
-
-# Plot ROC
-c <- plot(rf_roc_nf, col = "brown", lwd = 2, main = "Random Forest ROC Curve", add = TRUE, print.auc = TRUE)
-abline(a = 0, b = 1, lty = 2, col = "red")
-
-legend(x = "bottomright", legend = c("Asthmatics (Binary)", "Asthmatics & Smokers (Binary)", "All Adults (Multi-class)", "All Adults (Binary)"), fill = c("blue", "forestgreen", "orange", "brown"))
-```
-```{r}
-predict_classes <- predict(model, test)
-head(predict_classes)
-```
-```{r}
-predict_prob <- predict(model, test, type = "p")
-head(predict_prob)
-```
-```{r}
-table(test$ECIG_COMP, predict_classes)
-```
-```{r}
-#mean(as.character(test$ECIG_COMP) != as.character(predict_classes$))
+legend(x = "bottomright", legend = c("Asthmatics and Vaping (Binary)", "Asthmatics, Vaping and Smoking (Binary)", "Asthmatics (Binary)", "Asthmatics (Multi-Class"), fill = c("blue", "forestgreen", "red", "orange"))
 ```
